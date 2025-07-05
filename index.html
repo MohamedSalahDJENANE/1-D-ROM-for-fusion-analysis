@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENTHALPOR v2.75 (beta) - DJENANE Med Salah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .param-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .param-card label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .param-card input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #d1d5db;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s, opacity 0.2s;
+            border: none;
+        }
+        .btn-primary { background-color: #4f46e5; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #f97316; }
+        .btn-secondary:hover { background-color: #ea580c; }
+        .btn-danger { background-color: #dc2626; }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .btn-gray { background-color: #6b7280; }
+        .btn-gray:hover { background-color: #4b5563; }
+        .btn:disabled { background-color: #d1d5db; cursor: not-allowed; }
+
+        .log-container {
+            background-color: #1f2937;
+            color: #d1d5db;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        <div>
+            <h1 class="text-3xl font-bold text-red-800 mb-2">1D Fusion by DJENANE Mohamed Salah</h1>
+            <p class="text-gray-600">An interactive web-based simulation of one-dimensional fution with natural convection, based on a finite difference method.</p>
+        </div>
+
+        <!-- Parameters Section -->
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-blue-700">Simulation Parameters</h2>
+                <div class="flex gap-2">
+                    <button id="importParamsBtn" class="btn btn-primary text-sm">Import Params</button>
+                    <input type="file" id="importFile" class="hidden" accept=".json">
+                    <button id="exportParamsBtn" class="btn btn-primary text-sm">Export Params</button>
+                    <button id="loadDefaultsBtn" class="btn btn-gray text-sm">Load Defaults</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paramsContainer">
+                <!-- Material Properties -->
+                <div class="param-card">
+                    <h3 class="text-lg font-semibold mb-3 text-green-800">Material Properties</h3>
+                    <div class="space-y-3">
+                        <div><label for="rho_ref">Reference Density (kg/m³)</label><input id="rho_ref" type="number" value="940.0" step="10"></div>
+                        <div><label for="beta">Thermal Expansion (1/K)</label><input id="beta" type="number" value="0.0033" step="0.0001"></div>
+                        <div><label for="Cp">Specific Heat (J/kg·K)</label><input id="Cp" type="number" value="1800.0" step="100"></div>
+                        <div><label for="L_f">Latent Heat of Fusion (J/kg)</label><input id="L_f" type="number" value="100000" step="1000"></div>
+                        <div><label for="A_mush">Mushy Zone Constant</label><input id="A_mush" type="number" value="10000" step="1000"></div>
+                        <div><label for="viscosity">Dynamic Viscosity (Pa·s)</label><input id="viscosity" type="number" value="0.06" step="0.01"></div>
+                        <div><label for="kappa">Thermal Conductivity (W/m·K)</label><input id="kappa" type="number" value="0.2" step="0.1"></div>
+                        <div><label for="T_solidus">Solidus Temperature (K)</label><input id="T_solidus" type="number" value="305.0" step="1"></div>
+                        <div><label for="T_liquidus">Liquidus Temperature (K)</label><input id="T_liquidus" type="number" value="310.0" step="1"></div>
+                        <div><label for="T_ref">Reference Temperature (K)</label><input id="T_ref" type="number" value="300.0" step="1"></div>
+                    </div>
+                </div>
+
+                <!-- Domain and Time -->
+                <div class="param-card">
+                    <h3 class="text-lg font-semibold mb-3 text-orange-800">Domain & Time</h3>
+                    <div class="space-y-3">
+                        <div><label for="length">Domain Length (m)</label><input id="length" type="number" value="1.0" step="0.1"></div>
+                        <div><label for="Nz">Grid Points</label><input id="Nz" type="number" value="100" step="10"></div>
+                        <div><label for="total_time">Total Simulation Time (s)</label><input id="total_time" type="number" value="500.0" step="50"></div>
+                        <div><label for="dt">Time Step (s)</label><input id="dt" type="number" value="0.05" step="0.01"></div>
+                    </div>
+                     <h3 class="text-lg font-semibold mt-4 mb-3 text-purple-800">Boundary Conditions</h3>
+                     <div class="space-y-3">
+                        <div><label for="T_left">Left Temperature (K)</label><input id="T_left" type="number" value="300.0" step="5"></div>
+                        <div><label for="T_right">Right Temperature (K)</label><input id="T_right" type="number" value="330.0" step="5"></div>
+                    </div>
+                </div>
+
+                <!-- Solver & Output Settings -->
+                <div class="param-card">
+                    <h3 class="text-lg font-semibold mb-3 text-blue-800">Solver & Output Settings</h3>
+                    <div class="space-y-3">
+                        <div><label for="inner_iter_max">Max Inner Iterations</label><input id="inner_iter_max" type="number" value="1000" step="100"></div>
+                        <div><label for="convergence_delta">Convergence Tolerance</label><input id="convergence_delta" type="number" value="1e-6" step="1e-7"></div>
+                        <div><label for="log_update_time">Log & Plot Update Frequency (s)</label><input id="log_update_time" type="number" value="5.0" step="0.5"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls and Status -->
+        <div class="flex flex-wrap items-center gap-4">
+            <button id="startBtn" class="btn btn-primary">Start</button>
+            <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
+            <button id="resetBtn" class="btn btn-danger" disabled>Reset</button>
+            <div id="status" class="text-gray-700 font-medium">Status: Idle</div>
+        </div>
+
+        <!-- Plots Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-6">
+                 <div id="tempFractionPlot" class="bg-white rounded-lg shadow-md p-4 h-[400px]"></div>
+                 <div id="velocityPlot" class="bg-white rounded-lg shadow-md p-4 h-[300px]"></div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div id="fAvePlot" class="bg-white rounded-lg shadow-md p-4 h-[250px]"></div>
+                <div id="p1Plot" class="bg-white rounded-lg shadow-md p-4 h-[250px]"></div>
+                <div id="p2Plot" class="bg-white rounded-lg shadow-md p-4 h-[250px]"></div>
+            </div>
+        </div>
+
+        <!-- Log Sections -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xl font-semibold text-gray-700">Simulation Log</h2>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="enableSimLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+                        <label for="enableSimLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                    </div>
+                </div>
+                <pre id="log" class="log-container"></pre>
+            </div>
+            <div>
+                 <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-700">Detailed Results Log</h2>
+                     <div class="flex items-center">
+                        <input type="checkbox" id="enableResultsLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+                        <label for="enableResultsLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                    </div>
+                    <button id="downloadResultsBtn" class="btn btn-gray text-sm" disabled>Download Results</button>
+                </div>
+                <pre id="resultsLog" class="log-container"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global simulation state ---
+        let simState = {
+            running: false,
+            paused: false,
+            finished: false, // New flag to indicate a completed simulation
+            animationFrameId: null,
+            params: {},
+            n: 0,
+            v: [],
+            T: [],
+            detailedLogContent: "",
+            logSimEnabled: true,
+            logResultsEnabled: true
+        };
+        let tempFractionPlotLayout, velocityPlotLayout, fAvePlotLayout, p1PlotLayout, p2PlotLayout;
+        
+        // --- DOM Elements ---
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const importParamsBtn = document.getElementById('importParamsBtn');
+        const importFile = document.getElementById('importFile');
+        const exportParamsBtn = document.getElementById('exportParamsBtn');
+        const loadDefaultsBtn = document.getElementById('loadDefaultsBtn');
+        const downloadResultsBtn = document.getElementById('downloadResultsBtn');
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const resultsLogDiv = document.getElementById('resultsLog');
+        const enableSimLogCheck = document.getElementById('enableSimLog');
+        const enableResultsLogCheck = document.getElementById('enableResultsLog');
+
+        // --- Helper Functions ---
+        const log = (message) => { if (!simState.logSimEnabled) return; logDiv.textContent += message + '\n'; logDiv.scrollTop = logDiv.scrollHeight; };
+        const logResults = (message) => { if (!simState.logResultsEnabled) return; resultsLogDiv.textContent += message + '\n'; resultsLogDiv.scrollTop = resultsLogDiv.scrollHeight; };
+        const getParams = () => { const p = { g: 9.81, epsilon: 1e-3, v_left: 0.0, v_right: 0.0 }; const inputs = document.querySelectorAll('#paramsContainer input'); inputs.forEach(input => { p[input.id] = parseFloat(input.value); }); p.Nz = parseInt(p.Nz); p.dz = p.length / (p.Nz - 1); p.z = Array.from({ length: p.Nz }, (_, i) => i * p.dz); p.n_steps = Math.floor(p.total_time / p.dt); return p; };
+        
+        // --- Math & Science Functions ---
+        const zeros_like = (arr) => new Array(arr.length).fill(0);
+        function calculate_f(T_arr, T_solidus, T_liquidus) { const f = zeros_like(T_arr); for (let i = 0; i < T_arr.length; i++) { if (T_arr[i] >= T_liquidus) { f[i] = 1.0; } else if (T_arr[i] > T_solidus) { f[i] = (T_arr[i] - T_solidus) / (T_liquidus - T_solidus); } } return f; }
+        function calculate_dfdT(T_arr, T_solidus, T_liquidus) { const dfdT = zeros_like(T_arr); if (T_liquidus > T_solidus) { const inv_delta_T = 1.0 / (T_liquidus - T_solidus); for (let i = 0; i < T_arr.length; i++) { if (T_arr[i] > T_solidus && T_arr[i] < T_liquidus) { dfdT[i] = inv_delta_T; } } } return dfdT; }
+        function solve_tridiagonal(a, b, c, d) { const n = d.length; if (n === 0) return []; const c_prime = new Array(n).fill(0); const d_prime = new Array(n).fill(0); const x = new Array(n).fill(0); c_prime[0] = c[0] / b[0]; d_prime[0] = d[0] / b[0]; for (let i = 1; i < n; i++) { const m = 1.0 / (b[i] - a[i - 1] * c_prime[i - 1]); c_prime[i] = (i < n - 1 ? c[i] : 0) * m; d_prime[i] = (d[i] - a[i-1] * d_prime[i - 1]) * m; } x[n - 1] = d_prime[n - 1]; for (let i = n - 2; i >= 0; i--) { x[i] = d_prime[i] - c_prime[i] * x[i + 1]; } return x; }
+        
+        // --- Logging Formatters ---
+        function formatSummaryLogLine(time, p1, p2, iters, resT, resV) { const timeStr = time.toFixed(1).padStart(8); const p1Str = p1.toExponential(2).padStart(10); const p2Str = p2.toExponential(2).padStart(10); const itersStr = iters.toString().padStart(5); const resTStr = resT.toExponential(2).padStart(12); const resVStr = resV.toExponential(2).padStart(12); return `${timeStr} | ${p1Str} | ${p2Str} | ${itersStr} | ${resTStr} | ${resVStr}`; }
+        function formatDetailedLogLine(time, z, T, v, p1, p2, iters, resT, resV) {
+            const timeStr = time.toFixed(2).padEnd(8);
+            const zStr = z.toExponential(2).padEnd(10);
+            const TStr = T.toFixed(2).padEnd(8);
+            const vStr = v.toExponential(2).padEnd(10);
+            const p1Str = p1.toExponential(2).padEnd(10);
+            const p2Str = p2.toExponential(2).padEnd(10);
+            const itersStr = iters.toString().padEnd(6);
+            const resTStr = resT.toExponential(2).padEnd(12);
+            const resVStr = resV.toExponential(2).padEnd(12);
+            return `${timeStr}${zStr}${TStr}${vStr}${p1Str}${p2Str}${itersStr}${resTStr}${resVStr}`;
+        }
+
+        // --- UI & State Management ---
+        function updateUI() {
+            const isTrulyRunning = simState.running && !simState.paused;
+            startBtn.disabled = isTrulyRunning;
+            pauseBtn.disabled = !isTrulyRunning;
+            resetBtn.disabled = isTrulyRunning;
+
+            if (simState.paused) {
+                startBtn.textContent = 'Resume';
+                statusDiv.textContent = `Status: Paused at ${(simState.n * simState.params.dt).toFixed(1)}s`;
+            } else if (isTrulyRunning) {
+                startBtn.textContent = 'Start'; // It's disabled anyway
+                statusDiv.textContent = `Status: Running... Time: ${((simState.n + 1) * simState.params.dt).toFixed(1)}s / ${simState.params.total_time}s`;
+            } else if (simState.finished) {
+                startBtn.textContent = 'Continue';
+                statusDiv.textContent = `Status: Finished at ${(simState.n * simState.params.dt).toFixed(1)}s. Ready to continue.`;
+            } else { // Idle (before first run or after reset)
+                startBtn.textContent = 'Start';
+                statusDiv.textContent = 'Status: Idle';
+                resetBtn.disabled = simState.n === 0;
+            }
+        }
+
+        // --- Main Simulation Logic ---
+        function simulationStep() {
+            if (!simState.running || simState.paused) return;
+            // Note: n_steps can change if user continues with a new total_time
+            if (simState.n >= simState.params.n_steps) {
+                finishSimulation();
+                return;
+            }
+
+            const { params, v_old_timestep, T_old_timestep } = { params: simState.params, v_old_timestep: simState.v.slice(), T_old_timestep: simState.T.slice() };
+            let inner_iter_converged = false, p1_final = 0, p2_final = 0, iters_final = 0, resT_final = 0, resV_final = 0;
+            
+            for (let inner_iter = 0; inner_iter < params.inner_iter_max; inner_iter++) { const T_prev_iter = simState.T.slice(); const v_prev_iter = simState.v.slice(); let p1 = 0, p2 = 0; let T_new; for(let p2_iter=0; p2_iter < 20; p2_iter++) { const dfdT = calculate_dfdT(T_prev_iter, params.T_solidus, params.T_liquidus); const C_eff = Array.from({length: params.Nz}, (_, i) => params.rho_ref * (params.Cp + params.L_f * dfdT[i])); const alpha_T = params.kappa * params.dt / (2 * params.dz ** 2); const main_diag_T = Array.from({length: params.Nz-2}, (_, i) => C_eff[i+1] + 2 * alpha_T); const lower_diag_T = new Array(params.Nz-3).fill(-alpha_T); const upper_diag_T = new Array(params.Nz-3).fill(-alpha_T); const rhs_T = new Array(params.Nz-2).fill(0); for(let i=0; i<params.Nz-2; i++) { rhs_T[i] = (C_eff[i+1] - 2 * alpha_T) * T_old_timestep[i+1] + alpha_T * (T_old_timestep[i+2] + T_old_timestep[i]) - C_eff[i+1] * v_prev_iter[i+1] * p2 * params.dt; } rhs_T[0] += alpha_T * params.T_left; rhs_T[params.Nz-3] += alpha_T * params.T_right; const T_internal = solve_tridiagonal(lower_diag_T, main_diag_T, upper_diag_T, rhs_T); T_new = [params.T_left, ...T_internal, params.T_right]; let integral_residual = 0; for(let i=1; i<params.Nz-1; i++) { const T_laplacian = (T_new[i+1] - 2*T_new[i] + T_new[i-1]) / params.dz**2; integral_residual += ( C_eff[i] * ((T_new[i] - T_old_timestep[i]) / params.dt + v_prev_iter[i] * p2) - params.kappa * T_laplacian) * params.dz; } if (Math.abs(integral_residual) < 1e-6) break; let denominator = 0; for (let i = 1; i < params.Nz - 1; i++) denominator += C_eff[i] * v_prev_iter[i]; if (Math.abs(denominator) > 1e-9) p2 += -0.5 * integral_residual / (denominator*params.dz); else break; } simState.T = T_new.slice(); const buoyancy_term = Array.from({length: params.Nz}, (_,i) => params.rho_ref * params.g * params.beta * (simState.T[i] - params.T_ref)); const alpha_v = params.viscosity * params.dt / (2 * params.rho_ref * params.dz**2); const f_prev = calculate_f(T_prev_iter, params.T_solidus, params.T_liquidus); const mushy_coeff_prev = Array.from({length:params.Nz}, (_,i) => params.A_mush * (1 - f_prev[i])**2 / (f_prev[i]**3 + params.epsilon)); const main_diag_v = Array.from({length: params.Nz - 2}, (_, i) => 1 + 2 * alpha_v + (params.dt/params.rho_ref) * mushy_coeff_prev[i+1]); const lower_diag_v = new Array(params.Nz - 3).fill(-alpha_v); const upper_diag_v = new Array(params.Nz - 3).fill(-alpha_v); const rhs_v_star = new Array(params.Nz-2).fill(0); for(let i=1; i<params.Nz-1; i++) rhs_v_star[i-1] = v_old_timestep[i] + alpha_v * (v_old_timestep[i+1] - 2*v_old_timestep[i] + v_old_timestep[i-1]) + (params.dt/params.rho_ref) * buoyancy_term[i]; rhs_v_star[0] += alpha_v * params.v_left; rhs_v_star[params.Nz-3] += alpha_v * params.v_right; const v_star_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_v_star); const v_star = [params.v_left, ...v_star_internal, params.v_right]; const rhs_p = new Array(params.Nz-2).fill(- (params.dt / params.rho_ref)); const v_p_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_p); const v_p = [0, ...v_p_internal, 0]; const sum_v_star = v_star.reduce((a, b) => a + b, 0) * params.dz; const sum_v_p = v_p.reduce((a, b) => a + b, 0) * params.dz; if (Math.abs(sum_v_p) > 1e-12) p1 = -sum_v_star / sum_v_p; simState.v = Array.from({length: params.Nz}, (_, i) => v_star[i] + p1 * v_p[i]); simState.v[0] = params.v_left; simState.v[params.Nz - 1] = params.v_right; const temp_residual = Math.max(...simState.T.map((val, i) => Math.abs(val - T_prev_iter[i]))); const vel_residual = Math.max(...simState.v.map((val, i) => Math.abs(val - v_prev_iter[i]))); p1_final = p1; p2_final = p2; iters_final = inner_iter + 1; resT_final = temp_residual; resV_final = vel_residual; if (temp_residual < params.convergence_delta) { inner_iter_converged = true; break; } }
+            
+            if(!inner_iter_converged) log(`WARN: No convergence! ${formatSummaryLogLine((simState.n + 1) * params.dt, p1_final, p2_final, iters_final, resT_final, resV_final)}`);
+
+            const time = (simState.n + 1) * params.dt;
+            const log_interval_steps = Math.max(1, Math.floor(params.log_update_time / params.dt));
+
+            if ((simState.n + 1) % log_interval_steps === 0) {
+                const f_new = calculate_f(simState.T, params.T_solidus, params.T_liquidus);
+                const f_ave = f_new.reduce((a,b) => a + b, 0) / f_new.length;
+
+                updateLivePlots(params.z, simState.T, simState.v, time);
+                
+                Plotly.extendTraces('fAvePlot', { x: [[time]], y: [[f_ave]] }, [0]);
+                Plotly.extendTraces('p1Plot', { x: [[time]], y: [[p1_final]] }, [0]);
+                Plotly.extendTraces('p2Plot', { x: [[time]], y: [[p2_final]] }, [0]);
+                
+                log(formatSummaryLogLine(time, p1_final, p2_final, iters_final, resT_final, resV_final));
+                
+                if (simState.logResultsEnabled) {
+                    for (let i = 0; i < params.Nz; i++) {
+                        const line = formatDetailedLogLine(time, params.z[i], simState.T[i], simState.v[i], p1_final, p2_final, iters_final, resT_final, resV_final);
+                        logResults(line);
+                        simState.detailedLogContent += line + '\n';
+                    }
+                    downloadResultsBtn.disabled = false;
+                }
+            }
+            simState.n++;
+            updateUI();
+            simState.animationFrameId = requestAnimationFrame(simulationStep);
+        }
+
+        function startSimulation() {
+            if (simState.running && !simState.paused) return; // Already running
+
+            // Case 1: Resume from pause
+            if (simState.paused) {
+                simState.paused = false;
+                simState.running = true;
+            } 
+            // Case 2: Continue a finished simulation
+            else if (simState.finished) {
+                simState.params = getParams(); // Get potentially new params
+                simState.running = true;
+                simState.finished = false;
+                log("--- Continuing simulation ---");
+            }
+            // Case 3: Start a new simulation from scratch
+            else {
+                simState.params = getParams();
+                simState.logSimEnabled = enableSimLogCheck.checked;
+                simState.logResultsEnabled = enableResultsLogCheck.checked;
+                downloadResultsBtn.disabled = !simState.logResultsEnabled;
+
+                simState.n = 0;
+                simState.v = new Array(simState.params.Nz).fill(0);
+                simState.T = new Array(simState.params.Nz).fill(simState.params.T_left);
+                simState.T[0] = simState.params.T_left; simState.T[simState.params.Nz-1] = simState.params.T_right;
+                
+                logDiv.textContent = simState.logSimEnabled ? 'Time(s)  | p1         | p2         | Iters | max(abs(resT)) | max(abs(resV))\n' + '---------+------------+------------+-------+----------------+----------------\n' : 'Simulation Log disabled.';
+                resultsLogDiv.textContent = simState.logResultsEnabled ? 'Time    z         T       v         p1        p2        Iters max(resT)    max(resV)\n' : 'Detailed Results Log disabled.';
+                simState.detailedLogContent = simState.logResultsEnabled ? resultsLogDiv.textContent : '';
+
+                setupPlots(simState.params.z);
+                updateLivePlots(simState.params.z, simState.T, simState.v, 0);
+                
+                const initial_f_ave = calculate_f(simState.T, simState.params.T_solidus, simState.params.T_liquidus).reduce((a,b) => a+b, 0) / simState.params.Nz;
+                updateHistoryPlots([0.0], [initial_f_ave], [0.0], [0.0]);
+                
+                simState.running = true;
+            }
+            
+            simState.animationFrameId = requestAnimationFrame(simulationStep);
+            updateUI();
+        }
+
+        function pauseSimulation() { if (!simState.running || simState.paused) return; simState.paused = true; cancelAnimationFrame(simState.animationFrameId); updateUI(); }
+        
+        function resetSimulation() { 
+            simState.running = false; 
+            simState.paused = false; 
+            simState.finished = false; // Reset the finished flag
+            simState.n = 0; 
+            if(simState.animationFrameId) cancelAnimationFrame(simState.animationFrameId); 
+            const p = getParams(); 
+            setupPlots(p.z); 
+            logDiv.textContent = enableSimLogCheck.checked ? '' : 'Simulation Log disabled.'; 
+            resultsLogDiv.textContent = enableResultsLogCheck.checked ? '' : 'Detailed Results Log disabled.'; 
+            simState.detailedLogContent = ''; 
+            downloadResultsBtn.disabled = true; 
+            updateUI(); 
+        }
+
+        function finishSimulation() { 
+            simState.running = false; 
+            simState.paused = false; 
+            simState.finished = true; // Set finished flag
+            if(simState.animationFrameId) cancelAnimationFrame(simState.animationFrameId); 
+            log(`--- Simulation reached target time: ${simState.params.total_time.toFixed(1)}s ---`); 
+            updateUI(); 
+        }
+
+        // --- Parameter & Data Management ---
+        function showTemporaryMessage(button, message) {
+            const originalText = button.textContent;
+            button.textContent = message;
+            button.disabled = true;
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 2000);
+        }
+
+        function exportParameters() {
+            const paramsToExport = getParams();
+            const blob = new Blob([JSON.stringify(paramsToExport, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'parameters.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importParameters() {
+            importFile.click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const p = JSON.parse(e.target.result);
+                    Object.keys(p).forEach(key => {
+                        const input = document.getElementById(key);
+                        if (input) {
+                            input.value = p[key];
+                        }
+                    });
+                    showTemporaryMessage(importParamsBtn, 'Imported!');
+                } catch (err) {
+                    console.error("Error parsing JSON file:", err);
+                    showTemporaryMessage(importParamsBtn, 'Import Error!');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = null;
+        }
+
+        function loadDefaultParameters() {
+            const defaults = { rho_ref: 940.0, beta: 0.0033, Cp: 1800.0, L_f: 100000, A_mush: 10000, viscosity: 0.06, kappa: 0.2, T_solidus: 305.0, T_liquidus: 310.0, T_ref: 300.0, length: 1.0, Nz: 100, total_time: 500.0, dt: 0.05, T_left: 300.0, T_right: 330.0, inner_iter_max: 1000, convergence_delta: 1e-6, log_update_time: 5.0 };
+            Object.keys(defaults).forEach(key => {
+                const input = document.getElementById(key);
+                if (input) input.value = defaults[key];
+            });
+            showTemporaryMessage(loadDefaultsBtn, 'Defaults Loaded!');
+        }
+
+        function downloadResults() {
+            if (!simState.detailedLogContent) return;
+            const blob = new Blob([simState.detailedLogContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timeStamp = simState.n > 0 ? `_t${(simState.n * simState.params.dt).toFixed(0)}s` : '';
+            a.download = `simulation_results${timeStamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Plotting Functions ---
+        function setupPlots(z) {
+            tempFractionPlotLayout = { title: 'Temperature & Liquid Fraction Profiles', xaxis: { title: 'Position z (m)' }, yaxis: { title: 'Temperature (K)', side: 'left' }, yaxis2: { title: 'Liquid Fraction', side: 'right', overlaying: 'y', zeroline: false, showgrid: false, range: [0, 1]}, legend: { x: 0, y: 1.1, orientation: 'h' }, margin: { l: 60, r: 60, t: 60, b: 50 } };
+            Plotly.newPlot('tempFractionPlot', [ { x: z, y: [], name: 'Temperature', type: 'scatter', mode: 'lines' }, { x: z, y: [], name: 'Lq. Fraction', type: 'scatter', mode: 'lines', yaxis: 'y2' } ], tempFractionPlotLayout);
+            
+            velocityPlotLayout = { title: 'Velocity Profile', xaxis: { title: 'Position z (m)' }, yaxis: { title: 'Velocity (m/s)' }, margin: { l: 60, r: 60, t: 60, b: 50 }};
+            Plotly.newPlot('velocityPlot', [{ x: z, y: [], name: 'Velocity', type: 'scatter', mode: 'lines', line: {color: '#f97316'} }], velocityPlotLayout);
+
+            const historyPlotOptions = { margin: { l: 60, r: 30, t: 40, b: 50 }, xaxis: {title: 'Time (s)'} };
+            fAvePlotLayout = { ...historyPlotOptions, title: 'Avg. Liquid Fraction', yaxis: {title: 'f_ave', range: [0, 1]} };
+            p1PlotLayout = { ...historyPlotOptions, title: 'p1(t)', yaxis: {title: 'p1'} };
+            p2PlotLayout = { ...historyPlotOptions, title: 'p2(t)', yaxis: {title: 'p2'} };
+            Plotly.newPlot('fAvePlot', [{x:[], y:[], mode:'lines', name: 'f_ave'}], fAvePlotLayout);
+            Plotly.newPlot('p1Plot', [{x:[], y:[], mode:'lines', name: 'p1'}], p1PlotLayout);
+            Plotly.newPlot('p2Plot', [{x:[], y:[], mode:'lines', name: 'p2'}], p2PlotLayout);
+        }
+        
+        function updateLivePlots(z, T, v, time) {
+            const f = calculate_f(T, simState.params.T_solidus, simState.params.T_liquidus);
+            Plotly.react('tempFractionPlot', [ { x: z, y: T, name: 'Temperature', type: 'scatter', mode: 'lines' }, { x: z, y: f, name: 'Lq. Fraction', type: 'scatter', mode: 'lines', yaxis: 'y2' } ], { ...tempFractionPlotLayout, title: `Profiles at t = ${time.toFixed(1)}s` });
+            Plotly.react('velocityPlot', [{ x: z, y: v, name: 'Velocity', type: 'scatter', mode: 'lines', line: {color: '#f97316'} }], { ...velocityPlotLayout, title: `Velocity Profile at t = ${time.toFixed(1)}s` });
+        }
+        
+        function updateHistoryPlots(time, f_ave, p1, p2) {
+            Plotly.react('fAvePlot', [{x: time, y: f_ave, mode: 'lines', name: 'f_ave'}], fAvePlotLayout);
+            Plotly.react('p1Plot', [{x: time, y: p1, mode: 'lines', name: 'p1'}], p1PlotLayout);
+            Plotly.react('p2Plot', [{x: time, y: p2, mode: 'lines', name: 'p2'}], p2PlotLayout);
+        }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', startSimulation);
+        pauseBtn.addEventListener('click', pauseSimulation);
+        resetBtn.addEventListener('click', resetSimulation);
+        importParamsBtn.addEventListener('click', importParameters);
+        importFile.addEventListener('change', handleFileImport);
+        exportParamsBtn.addEventListener('click', exportParameters);
+        loadDefaultsBtn.addEventListener('click', loadDefaultParameters);
+        downloadResultsBtn.addEventListener('click', downloadResults);
+        
+        enableSimLogCheck.addEventListener('change', (e) => {
+            simState.logSimEnabled = e.target.checked;
+            if (!simState.running && simState.n === 0) {
+                 logDiv.textContent = simState.logSimEnabled ? '' : 'Simulation Log disabled.';
+            }
+        });
+        enableResultsLogCheck.addEventListener('change', (e) => {
+            simState.logResultsEnabled = e.target.checked;
+            if (!e.target.checked) { downloadResultsBtn.disabled = true; }
+            if (!simState.running && simState.n === 0) {
+                 resultsLogDiv.textContent = simState.logResultsEnabled ? '' : 'Detailed Results Log disabled.';
+            }
+        });
+
+
+        window.addEventListener('load', () => {
+             const p = getParams();
+             setupPlots(p.z);
+             updateUI();
+        });
+
+    </script>
+</body>
+</html>
