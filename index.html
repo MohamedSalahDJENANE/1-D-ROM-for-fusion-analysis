@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ENTHALPOR v2.75 (beta) - DJENANE Med Salah</title>
+    <title>ENTHALPOR v4.0 - Advanced Boundary Conditions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,18 +18,23 @@
             padding: 1rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
-        .param-card label {
+        .param-item label {
             display: block;
             font-weight: 500;
             color: #374151;
             font-size: 0.875rem;
             margin-bottom: 0.5rem;
         }
-        .param-card input {
+        .param-item input, .param-item select {
             width: 100%;
             padding: 0.5rem;
             border-radius: 0.375rem;
             border: 1px solid #d1d5db;
+        }
+        .function-input {
+            font-family: monospace;
+            color: #1d4ed8;
+            background-color: #eff6ff;
         }
         .btn {
             padding: 0.5rem 1rem;
@@ -59,16 +64,86 @@
             overflow-y: auto;
             font-family: monospace;
             font-size: 0.875rem;
-            white-space: pre;
+            white-space: pre-wrap;
+        }
+        
+        /* Modal Styles */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+        }
+
+        /* Progress Widget Styles */
+        #progressWidget {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 280px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            color: #1f2937;
+        }
+        #progressWidgetHeader {
+            padding: 0.5rem 0.75rem;
+            background-color: #e5e7eb;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            cursor: grab;
+            font-weight: 600;
+        }
+        #progressWidgetHeader:active {
+            cursor: grabbing;
+        }
+        #progressWidgetContent {
+            padding: 0.75rem;
+            font-family: monospace;
+        }
+        .progress-bar-container {
+            background-color: #e5e7eb;
+            border-radius: 0.25rem;
+            overflow: hidden;
+            height: 10px;
+            margin-top: 0.5rem;
+        }
+        .progress-bar {
+            background-color: #4f46e5;
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
         }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
+    <!-- Canvas for Picture-in-Picture. It's hidden from the user. -->
+    <canvas id="pipCanvas" width="280" height="110" style="display: none;"></canvas>
+
+    <!-- Draggable Progress Widget -->
+    <div id="progressWidget" class="hidden">
+        <div id="progressWidgetHeader">Simulation Progress</div>
+        <div id="progressWidgetContent">
+            <div>Time: <span id="progressTime">0.0s / 0.0s</span></div>
+            <div>Progress: <span id="progressPercent">(0.0%)</span></div>
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto space-y-8">
-        <div>
-            <h1 class="text-3xl font-bold text-red-800 mb-2">1D Fusion by DJENANE Mohamed Salah</h1>
-            <p class="text-gray-600">An interactive web-based simulation of one-dimensional fution with natural convection, based on a finite difference method.</p>
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-red-800 mb-2">1D Fusion by DJENANE Mohamed Salah</h1>
+                <p class="text-gray-600">An interactive web-based simulation of one-dimensional fusion with natural convection, now with advanced boundary conditions.</p>
+            </div>
+            <button id="helpBtn" class="btn btn-primary flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1-1.731A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                Function Help
+            </button>
         </div>
 
         <!-- Parameters Section -->
@@ -76,9 +151,9 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-semibold text-blue-700">Simulation Parameters</h2>
                 <div class="flex gap-2">
-                    <button id="importParamsBtn" class="btn btn-primary text-sm">Import Params</button>
+                    <button id="importParamsBtn" class="btn btn-primary text-sm">Import</button>
                     <input type="file" id="importFile" class="hidden" accept=".json">
-                    <button id="exportParamsBtn" class="btn btn-primary text-sm">Export Params</button>
+                    <button id="exportParamsBtn" class="btn btn-primary text-sm">Export</button>
                     <button id="loadDefaultsBtn" class="btn btn-gray text-sm">Load Defaults</button>
                 </div>
             </div>
@@ -86,55 +161,68 @@
                 <!-- Material Properties -->
                 <div class="param-card">
                     <h3 class="text-lg font-semibold mb-3 text-green-800">Material Properties</h3>
-                    <div class="space-y-3">
-                        <div><label for="rho_ref">Reference Density (kg/m³)</label><input id="rho_ref" type="number" value="940.0" step="10"></div>
-                        <div><label for="beta">Thermal Expansion (1/K)</label><input id="beta" type="number" value="0.0033" step="0.0001"></div>
-                        <div><label for="Cp">Specific Heat (J/kg·K)</label><input id="Cp" type="number" value="1800.0" step="100"></div>
-                        <div><label for="L_f">Latent Heat of Fusion (J/kg)</label><input id="L_f" type="number" value="100000" step="1000"></div>
-                        <div><label for="A_mush">Mushy Zone Constant</label><input id="A_mush" type="number" value="10000" step="1000"></div>
-                        <div><label for="viscosity">Dynamic Viscosity (Pa·s)</label><input id="viscosity" type="number" value="0.06" step="0.01"></div>
-                        <div><label for="kappa">Thermal Conductivity (W/m·K)</label><input id="kappa" type="number" value="0.2" step="0.1"></div>
-                        <div><label for="T_solidus">Solidus Temperature (K)</label><input id="T_solidus" type="number" value="305.0" step="1"></div>
-                        <div><label for="T_liquidus">Liquidus Temperature (K)</label><input id="T_liquidus" type="number" value="310.0" step="1"></div>
-                        <div><label for="T_ref">Reference Temperature (K)</label><input id="T_ref" type="number" value="300.0" step="1"></div>
-                    </div>
+                    <div class="space-y-4" id="materialProperties"></div>
                 </div>
 
-                <!-- Domain and Time -->
+                <!-- Domain, Time, and BCs -->
                 <div class="param-card">
                     <h3 class="text-lg font-semibold mb-3 text-orange-800">Domain & Time</h3>
                     <div class="space-y-3">
-                        <div><label for="length">Domain Length (m)</label><input id="length" type="number" value="1.0" step="0.1"></div>
-                        <div><label for="Nz">Grid Points</label><input id="Nz" type="number" value="100" step="10"></div>
-                        <div><label for="total_time">Total Simulation Time (s)</label><input id="total_time" type="number" value="500.0" step="50"></div>
-                        <div><label for="dt">Time Step (s)</label><input id="dt" type="number" value="0.05" step="0.01"></div>
+                        <div class="param-item"><label for="length">Domain Length (L) (m)</label><input id="length" type="number" value="1.0" step="0.1"></div>
+                        <div class="param-item"><label for="height">Cavity Height (H) (m)</label><input id="height" type="number" value="1.0" step="0.1"></div>
+                        <div class="param-item"><label for="Nz">Grid Points</label><input id="Nz" type="number" value="100" step="10"></div>
+                        <div class="param-item"><label for="total_time">Total Simulation Time (s)</label><input id="total_time" type="number" value="500.0" step="50"></div>
+                        <div class="param-item"><label for="dt">Time Step (s)</label><input id="dt" type="number" value="0.05" step="0.01"></div>
                     </div>
+
+                    <!-- CFL Stability Indicator -->
+                    <h3 class="text-lg font-semibold mt-4 mb-3 text-teal-800">Stability</h3>
+                    <div id="cfl-indicator" class="p-3 rounded-lg border transition-colors duration-300">
+                        <!-- Content generated by JS -->
+                    </div>
+
                      <h3 class="text-lg font-semibold mt-4 mb-3 text-purple-800">Boundary Conditions</h3>
-                     <div class="space-y-3">
-                        <div><label for="T_left">Left Temperature (K)</label><input id="T_left" type="number" value="300.0" step="5"></div>
-                        <div><label for="T_right">Right Temperature (K)</label><input id="T_right" type="number" value="330.0" step="5"></div>
-                    </div>
+                     <div class="space-y-4" id="boundaryConditions"></div>
+
+                     <h3 class="text-lg font-semibold mt-4 mb-3 text-cyan-800">Initial Conditions</h3>
+                     <div class="space-y-4" id="initialConditions"></div>
                 </div>
 
                 <!-- Solver & Output Settings -->
                 <div class="param-card">
                     <h3 class="text-lg font-semibold mb-3 text-blue-800">Solver & Output Settings</h3>
                     <div class="space-y-3">
-                        <div><label for="inner_iter_max">Max Inner Iterations</label><input id="inner_iter_max" type="number" value="1000" step="100"></div>
-                        <div><label for="convergence_delta">Convergence Tolerance</label><input id="convergence_delta" type="number" value="1e-6" step="1e-7"></div>
-                        <div><label for="log_update_time">Log & Plot Update Frequency (s)</label><input id="log_update_time" type="number" value="5.0" step="0.5"></div>
+                        <div class="param-item"><label for="inner_iter_max">Max Inner Iterations</label><input id="inner_iter_max" type="number" value="1000" step="100"></div>
+                        <div class="param-item"><label for="convergence_delta_T">Temperature Tolerance</label><input id="convergence_delta_T" type="number" value="1e-3" step="1e-7"></div>
+                        <div class="param-item"><label for="convergence_delta_V">Velocity Tolerance</label><input id="convergence_delta_V" type="number" value="1e-6" step="1e-7"></div>
+                        <div class="param-item"><label for="plot_update_time">Plot Update Frequency (s)</label><input id="plot_update_time" type="number" value="2.0" step="0.5"></div>
+                        <div class="param-item"><label for="sim_log_update_time">Sim. Log Frequency (s)</label><input id="sim_log_update_time" type="number" value="5.0" step="0.5"></div>
+                        <div class="param-item"><label for="results_log_update_time">Detailed Log Frequency (s)</label><input id="results_log_update_time" type="number" value="30.0" step="1.0"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Controls and Status -->
-        <div class="flex flex-wrap items-center gap-4">
+        <div class="flex flex-wrap items-center gap-5 p-4 bg-white rounded-lg shadow">
             <button id="startBtn" class="btn btn-primary">Start</button>
             <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
             <button id="resetBtn" class="btn btn-danger" disabled>Reset</button>
-            <div id="status" class="text-gray-700 font-medium">Status: Idle</div>
+            <div class="flex items-center gap-2 border-l pl-4">
+                <input type="checkbox" id="parametricStudyCheck" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="parametricStudyCheck" class="font-medium text-gray-700">Enable Parametric Study</label>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="showProgressWidgetCheck" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="showProgressWidgetCheck" class="font-medium text-gray-700">Show In-Page Widget</label>
+            </div>
+            <button id="pipBtn" class="btn btn-primary text-sm flex items-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0-.5.5v5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5V8z"/><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13zM1 3.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9z"/></svg>
+                Pop-out Progress
+            </button>
+            <div id="status" class="text-gray-700 font-medium flex-grow">Status: Idle</div>
         </div>
+
 
         <!-- Plots Section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -148,15 +236,31 @@
                 <div id="p2Plot" class="bg-white rounded-lg shadow-md p-4 h-[250px]"></div>
             </div>
         </div>
+        
+        <!-- 2D Contour Plots Section -->
+        <div class="flex justify-end items-center mb-2">
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="groupZoomCheck" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="groupZoomCheck" class="font-medium text-gray-700">Enable Group Zoom</label>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="velocityContourPlot" class="bg-white rounded-lg shadow-md p-4 h-[400px]"></div>
+            <div id="fractionContourPlot" class="bg-white rounded-lg shadow-md p-4 h-[400px]"></div>
+            <div id="tempContourPlot" class="bg-white rounded-lg shadow-md p-4 h-[400px]"></div>
+        </div>
 
         <!-- Log Sections -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-6">
             <div>
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-xl font-semibold text-gray-700">Simulation Log</h2>
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enableSimLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
-                        <label for="enableSimLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                    <div class="flex items-center gap-4">
+                        <button id="downloadSimLogBtn" class="btn btn-gray text-sm" disabled>Download Log</button>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enableSimLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+                            <label for="enableSimLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                        </div>
                     </div>
                 </div>
                 <pre id="log" class="log-container"></pre>
@@ -164,181 +268,807 @@
             <div>
                  <div class="flex justify-between items-center mb-3">
                     <h2 class="text-xl font-semibold text-gray-700">Detailed Results Log</h2>
-                     <div class="flex items-center">
-                        <input type="checkbox" id="enableResultsLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
-                        <label for="enableResultsLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                     <div class="flex items-center gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="enableResultsLog" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+                            <label for="enableResultsLog" class="ml-2 block text-sm text-gray-900">Enabled</label>
+                        </div>
+                        <button id="downloadResultsBtn" class="btn btn-gray text-sm" disabled>Download Results</button>
                     </div>
-                    <button id="downloadResultsBtn" class="btn btn-gray text-sm" disabled>Download Results</button>
                 </div>
                 <pre id="resultsLog" class="log-container"></pre>
             </div>
         </div>
     </div>
 
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full transform transition-all overflow-y-auto max-h-full">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Using Math Functions</h3>
+                <button id="closeHelpBtn" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div>
+                <p class="text-gray-600 mb-4">You can define properties as functions. The available variables depend on the context:</p>
+                <ul class="list-disc list-inside space-y-2 bg-gray-50 p-4 rounded-md">
+                    <li><strong>Material/Boundary Properties:</strong> Use <code>t</code> (time) and <code>T</code> (local temperature).</li>
+                    <li><strong>Initial Temperature:</strong> Use <code>z</code> (position along the domain).</li>
+                </ul>
+                <p class="text-gray-600 mt-4">Always prefix standard math functions with <code>Math.</code> (e.g., <code>Math.sin(x)</code>, <code>Math.pow(base, exp)</code>).</p>
+                <p class="text-gray-600 mt-4"><strong>Example (Boundary Temp):</strong></p>
+                <pre class="bg-gray-800 text-white p-2 rounded-md mt-2 text-sm">315 + 10 * Math.sin(t / 50)</pre>
+                <p class="text-gray-600 mt-4"><strong>Example (Initial Temp):</strong></p>
+                <pre class="bg-gray-800 text-white p-2 rounded-md mt-2 text-sm">300 + 30 * Math.sin(z * Math.PI)</pre>
+                
+                <h4 class="text-lg font-semibold text-gray-700 mt-6 mb-2">Conditional Logic</h4>
+                <p class="text-gray-600 mb-2">You can use conditional statements with a syntax similar to some engineering software. This is useful for time-dependent or temperature-dependent properties.</p>
+                <p class="text-gray-600">The format is: <code>if(condition; value_if_true; value_if_false)</code>.</p>
+                <p class="text-gray-600 mt-4"><strong>Example (Conditional Heating):</strong></p>
+                <pre class="bg-gray-800 text-white p-2 rounded-md mt-2 text-sm">if(t &lt; 60; 300 + 0.5*t; 330)</pre>
+                <p class="text-gray-600 mt-2">This sets the temperature to rise for the first 60 seconds, then holds it constant at 330K.</p>
+                 <p class="text-gray-600 mt-4"><strong>Nested Example:</strong></p>
+                <pre class="bg-gray-800 text-white p-2 rounded-md mt-2 text-sm">if(t &lt; 100; 310; if(t &lt; 200; 350; 330))</pre>
+                 <p class="text-gray-600 mt-2">This holds temperature at 310K until t=100s, then jumps to 350K until t=200s, and finally settles at 330K.</p>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         // --- Global simulation state ---
         let simState = {
             running: false,
             paused: false,
-            finished: false, // New flag to indicate a completed simulation
+            finished: false,
             animationFrameId: null,
             params: {},
             n: 0,
             v: [],
             T: [],
+            summaryLogContent: "",
             detailedLogContent: "",
             logSimEnabled: true,
-            logResultsEnabled: true
+            logResultsEnabled: true,
+            functionCache: {},
+            pipWindow: null
         };
-        let tempFractionPlotLayout, velocityPlotLayout, fAvePlotLayout, p1PlotLayout, p2PlotLayout;
+
+        // --- Parametrical Study State ---
+        let studyRunCounter = 0;
+        let plotData = { tempFraction: [], velocity: [], fAve: [], p1: [], p2: [], tempContour: [], velocityContour: [], fractionContour: [] };
+        const plotColors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f0f', '#bcbd22', '#17becf'];
+
+        // --- Plot Layouts ---
+        let tempFractionPlotLayout, velocityPlotLayout, fAvePlotLayout, p1PlotLayout, p2PlotLayout, tempContourLayout, velocityContourLayout, fractionContourLayout;
         
         // --- DOM Elements ---
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const parametricStudyCheck = document.getElementById('parametricStudyCheck');
         const importParamsBtn = document.getElementById('importParamsBtn');
         const importFile = document.getElementById('importFile');
         const exportParamsBtn = document.getElementById('exportParamsBtn');
         const loadDefaultsBtn = document.getElementById('loadDefaultsBtn');
+        const downloadSimLogBtn = document.getElementById('downloadSimLogBtn');
         const downloadResultsBtn = document.getElementById('downloadResultsBtn');
         const statusDiv = document.getElementById('status');
         const logDiv = document.getElementById('log');
         const resultsLogDiv = document.getElementById('resultsLog');
         const enableSimLogCheck = document.getElementById('enableSimLog');
         const enableResultsLogCheck = document.getElementById('enableResultsLog');
+        const helpBtn = document.getElementById('helpBtn');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpBtn = document.getElementById('closeHelpBtn');
+        const lengthInput = document.getElementById('length');
+        const heightInput = document.getElementById('height');
+        // Progress Widget Elements
+        const showProgressWidgetCheck = document.getElementById('showProgressWidgetCheck');
+        const progressWidget = document.getElementById('progressWidget');
+        const progressTimeSpan = document.getElementById('progressTime');
+        const progressPercentSpan = document.getElementById('progressPercent');
+        const progressBar = document.getElementById('progressBar');
+        // Picture-in-Picture Elements
+        const pipBtn = document.getElementById('pipBtn');
+        const pipCanvas = document.getElementById('pipCanvas');
+        const pipCtx = pipCanvas.getContext('2d');
+        // Group Zoom Element
+        const groupZoomCheck = document.getElementById('groupZoomCheck');
+
 
         // --- Helper Functions ---
         const log = (message) => { if (!simState.logSimEnabled) return; logDiv.textContent += message + '\n'; logDiv.scrollTop = logDiv.scrollHeight; };
         const logResults = (message) => { if (!simState.logResultsEnabled) return; resultsLogDiv.textContent += message + '\n'; resultsLogDiv.scrollTop = resultsLogDiv.scrollHeight; };
-        const getParams = () => { const p = { g: 9.81, epsilon: 1e-3, v_left: 0.0, v_right: 0.0 }; const inputs = document.querySelectorAll('#paramsContainer input'); inputs.forEach(input => { p[input.id] = parseFloat(input.value); }); p.Nz = parseInt(p.Nz); p.dz = p.length / (p.Nz - 1); p.z = Array.from({ length: p.Nz }, (_, i) => i * p.dz); p.n_steps = Math.floor(p.total_time / p.dt); return p; };
         
         // --- Math & Science Functions ---
         const zeros_like = (arr) => new Array(arr.length).fill(0);
-        function calculate_f(T_arr, T_solidus, T_liquidus) { const f = zeros_like(T_arr); for (let i = 0; i < T_arr.length; i++) { if (T_arr[i] >= T_liquidus) { f[i] = 1.0; } else if (T_arr[i] > T_solidus) { f[i] = (T_arr[i] - T_solidus) / (T_liquidus - T_solidus); } } return f; }
-        function calculate_dfdT(T_arr, T_solidus, T_liquidus) { const dfdT = zeros_like(T_arr); if (T_liquidus > T_solidus) { const inv_delta_T = 1.0 / (T_liquidus - T_solidus); for (let i = 0; i < T_arr.length; i++) { if (T_arr[i] > T_solidus && T_arr[i] < T_liquidus) { dfdT[i] = inv_delta_T; } } } return dfdT; }
+        function calculate_f(T_arr, T_solidus_arr, T_liquidus_arr) { const f = zeros_like(T_arr); for (let i = 0; i < T_arr.length; i++) { const T_solidus = T_solidus_arr[i]; const T_liquidus = T_liquidus_arr[i]; if (T_liquidus > T_solidus) { if (T_arr[i] >= T_liquidus) { f[i] = 1.0; } else if (T_arr[i] > T_solidus) { f[i] = (T_arr[i] - T_solidus) / (T_liquidus - T_solidus); } } else { f[i] = (T_arr[i] > T_solidus) ? 1.0 : 0.0; } } return f; }
+        function calculate_dfdT(T_arr, T_solidus_arr, T_liquidus_arr) { const dfdT = zeros_like(T_arr); for (let i = 0; i < T_arr.length; i++) { const T_solidus = T_solidus_arr[i]; const T_liquidus = T_liquidus_arr[i]; if (T_liquidus > T_solidus) { const inv_delta_T = 1.0 / (T_liquidus - T_solidus); if (T_arr[i] > T_solidus && T_arr[i] < T_liquidus) { dfdT[i] = inv_delta_T; } } } return dfdT; }
         function solve_tridiagonal(a, b, c, d) { const n = d.length; if (n === 0) return []; const c_prime = new Array(n).fill(0); const d_prime = new Array(n).fill(0); const x = new Array(n).fill(0); c_prime[0] = c[0] / b[0]; d_prime[0] = d[0] / b[0]; for (let i = 1; i < n; i++) { const m = 1.0 / (b[i] - a[i - 1] * c_prime[i - 1]); c_prime[i] = (i < n - 1 ? c[i] : 0) * m; d_prime[i] = (d[i] - a[i-1] * d_prime[i - 1]) * m; } x[n - 1] = d_prime[n - 1]; for (let i = n - 2; i >= 0; i--) { x[i] = d_prime[i] - c_prime[i] * x[i + 1]; } return x; }
         
         // --- Logging Formatters ---
-        function formatSummaryLogLine(time, p1, p2, iters, resT, resV) { const timeStr = time.toFixed(1).padStart(8); const p1Str = p1.toExponential(2).padStart(10); const p2Str = p2.toExponential(2).padStart(10); const itersStr = iters.toString().padStart(5); const resTStr = resT.toExponential(2).padStart(12); const resVStr = resV.toExponential(2).padStart(12); return `${timeStr} | ${p1Str} | ${p2Str} | ${itersStr} | ${resTStr} | ${resVStr}`; }
-        function formatDetailedLogLine(time, z, T, v, p1, p2, iters, resT, resV) {
+        function formatSummaryLogLine(time, p1, p2, iters, resT, resV, minT, maxT, minV, maxV) {
+            const timeStr = time.toFixed(1).padStart(8);
+            const p1Str = p1.toExponential(2).padStart(10);
+            const p2Str = p2.toExponential(2).padStart(10);
+            const itersStr = iters.toString().padStart(5);
+            const resTStr = resT.toExponential(2).padStart(12);
+            const resVStr = resV.toExponential(2).padStart(12);
+            const minTStr = minT.toFixed(2).padStart(8);
+            const maxTStr = maxT.toFixed(2).padStart(8);
+            const minVStr = minV.toExponential(2).padStart(10);
+            const maxVStr = maxV.toExponential(2).padStart(10);
+            return `${timeStr} | ${p1Str} | ${p2Str} | ${itersStr} | ${resTStr} | ${resVStr} | ${minTStr} | ${maxTStr} | ${minVStr} | ${maxVStr}`;
+        }
+        
+        function formatDetailedLogLine(time, z, T, v, f, f_ave, p1, p2, iters, resT, resV) {
             const timeStr = time.toFixed(2).padEnd(8);
             const zStr = z.toExponential(2).padEnd(10);
             const TStr = T.toFixed(2).padEnd(8);
             const vStr = v.toExponential(2).padEnd(10);
+            const fStr = f.toExponential(3).padEnd(12);
+            const fAveStr = f_ave.toExponential(3).padEnd(12);
             const p1Str = p1.toExponential(2).padEnd(10);
             const p2Str = p2.toExponential(2).padEnd(10);
             const itersStr = iters.toString().padEnd(6);
             const resTStr = resT.toExponential(2).padEnd(12);
             const resVStr = resV.toExponential(2).padEnd(12);
-            return `${timeStr}${zStr}${TStr}${vStr}${p1Str}${p2Str}${itersStr}${resTStr}${resVStr}`;
+            return `${timeStr}${zStr}${TStr}${vStr}${fStr}${fAveStr}${p1Str}${p2Str}${itersStr}${resTStr}${resVStr}`;
         }
 
         // --- UI & State Management ---
         function updateUI() {
             const isTrulyRunning = simState.running && !simState.paused;
             startBtn.disabled = isTrulyRunning;
-            pauseBtn.disabled = !isTrulyRunning;
-            resetBtn.disabled = isTrulyRunning;
+            pauseBtn.disabled = !simState.running || simState.paused;
+            resetBtn.disabled = isTrulyRunning || (studyRunCounter === 0 && simState.n === 0);
+            parametricStudyCheck.disabled = simState.running || simState.paused || (simState.finished && studyRunCounter > 0);
 
+            let currentTime = 0;
+            let totalTime = simState.params.total_time || parseFloat(document.getElementById('total_time').value);
+            
             if (simState.paused) {
                 startBtn.textContent = 'Resume';
-                statusDiv.textContent = `Status: Paused at ${(simState.n * simState.params.dt).toFixed(1)}s`;
+                currentTime = simState.n * simState.params.dt;
+                statusDiv.textContent = `Status: Paused Run ${studyRunCounter} at ${currentTime.toFixed(1)}s`;
             } else if (isTrulyRunning) {
-                startBtn.textContent = 'Start'; // It's disabled anyway
-                statusDiv.textContent = `Status: Running... Time: ${((simState.n + 1) * simState.params.dt).toFixed(1)}s / ${simState.params.total_time}s`;
+                startBtn.textContent = 'Start';
+                currentTime = (simState.n + 1) * simState.params.dt;
+                statusDiv.textContent = `Status: Running Run ${studyRunCounter}... Time: ${currentTime.toFixed(1)}s / ${totalTime}s`;
             } else if (simState.finished) {
-                startBtn.textContent = 'Continue';
-                statusDiv.textContent = `Status: Finished at ${(simState.n * simState.params.dt).toFixed(1)}s. Ready to continue.`;
-            } else { // Idle (before first run or after reset)
+                 currentTime = simState.n * simState.params.dt;
+                 if (parametricStudyCheck.checked) {
+                    startBtn.textContent = 'Start Next Run';
+                    statusDiv.textContent = `Status: Run ${studyRunCounter} finished. Ready for next parametric run.`;
+                } else {
+                    startBtn.textContent = 'Continue';
+                    statusDiv.textContent = `Status: Finished at ${currentTime.toFixed(1)}s. Ready to continue.`;
+                }
+            } else { 
                 startBtn.textContent = 'Start';
                 statusDiv.textContent = 'Status: Idle';
-                resetBtn.disabled = simState.n === 0;
+            }
+
+            // Update Progress Widget
+            const percentage = totalTime > 0 ? Math.min(100, (currentTime / totalTime) * 100) : 0;
+            progressTimeSpan.textContent = `${currentTime.toFixed(1)}s / ${totalTime.toFixed(1)}s`;
+            progressPercentSpan.textContent = `(${percentage.toFixed(1)}%)`;
+            progressBar.style.width = `${percentage}%`;
+
+            // Update Picture-in-Picture Canvas
+            drawPipCanvas(currentTime, totalTime, percentage);
+        }
+        
+        // --- Parameter Definition & Handling ---
+        const paramDefinitions = {
+            material: [
+                { id: 'rho_ref', label: 'Reference Density (kg/m³)', value: '940.0', func: '' },
+                { id: 'beta', label: 'Thermal Expansion (1/K)', value: '0.0033', func: '' },
+                { id: 'Cp', label: 'Specific Heat (J/kg·K)', value: '2500.0', func: '' },
+                { id: 'L_f', label: 'Latent Heat of Fusion (J/kg)', value: '100000', func: '' },
+                { id: 'A_mush', label: 'Mushy Zone Constant', value: '10000', func: '' },
+                { id: 'viscosity', label: 'Dynamic Viscosity (Pa·s)', value: '0.06', func: '' },
+                { id: 'kappa', label: 'Thermal Conductivity (W/m·K)', value: '0.2', func: '' },
+                { id: 'T_solidus', label: 'Solidus Temperature (K)', value: '305.0', func: '' },
+                { id: 'T_liquidus', label: 'Liquidus Temperature (K)', value: '310.0', func: '' },
+                { id: 'T_ref', label: 'Reference Temperature (K)', value: '300.0', func: '' },
+            ],
+            boundary: [
+                { side: 'left', label: 'Left Boundary (z=0)', type: 'dirichlet', T: { value: '300.0', func: 'if(t<60; 300+(20*t/60); 320)'}, q: { value: '1000' }, h: { value: '10' }, T_inf: { value: '300' } },
+                { side: 'right', label: 'Right Boundary (z=L)', type: 'dirichlet', T: { value: '320.0', func: ''}, q: { value: '0' }, h: { value: '10' }, T_inf: { value: '300' } }
+            ],
+            initial: [
+                { id: 'T_initial', label: 'Initial Temperature Profile', type: 'constant', value: '300.0', func: '' }
+            ]
+        };
+
+        function createParamInput(p) {
+            const container = document.createElement('div');
+            container.className = 'param-item space-y-2';
+            container.innerHTML = `
+                <label for="${p.id}-type">${p.label}</label>
+                <select id="${p.id}-type" data-id="${p.id}" class="param-type-selector">
+                    <option value="constant">Constant</option>
+                    <option value="function">Function (t, T)</option>
+                </select>
+                <input id="${p.id}-const" type="number" value="${p.value}" step="any">
+                <input id="${p.id}-func" type="text" placeholder="e.g., ${p.value} + 0.1*T" class="function-input hidden" value="${p.func}">
+            `;
+            return container;
+        }
+        
+        function createBoundaryConditionInput(p) {
+            const side = p.side;
+            const container = document.createElement('div');
+            container.className = 'param-item space-y-2 border-b pb-4 mb-4';
+            container.innerHTML = `
+                <label for="bc_${side}_type" class="font-semibold">${p.label}</label>
+                <select id="bc_${side}_type" data-side="${side}" class="bc-type-selector">
+                    <option value="dirichlet">1. Dirichlet (Temperature)</option>
+                    <option value="flux">2. Neumann (Flux)</option>
+                    <option value="fourier">3. Robin (Fourier)</option>
+                </select>
+                
+                <!-- Dirichlet Inputs -->
+                <div id="bc_${side}_dirichlet_inputs" class="space-y-2">
+                    <label for="bc_${side}_T_type">Temperature (K)</label>
+                    <select id="bc_${side}_T_type" data-side="${side}" data-param="T" class="bc-param-type-selector">
+                        <option value="constant">Constant</option><option value="function">Function (t)</option>
+                    </select>
+                    <input id="bc_${side}_T_const" type="number" value="${p.T.value}" step="any">
+                    <input id="bc_${side}_T_func" type="text" class="function-input hidden" value="${p.T.func}">
+                </div>
+
+                <!-- Flux Inputs -->
+                <div id="bc_${side}_flux_inputs" class="hidden space-y-2">
+                    <label for="bc_${side}_q_type">Heat Flux (W/m²)</label>
+                    <p class="text-xs text-gray-500 -mt-2">Positive flux is in the z-direction.</p>
+                    <select id="bc_${side}_q_type" data-side="${side}" data-param="q" class="bc-param-type-selector">
+                        <option value="constant">Constant</option><option value="function">Function (t)</option>
+                    </select>
+                    <input id="bc_${side}_q_const" type="number" value="${p.q.value}" step="any">
+                    <input id="bc_${side}_q_func" type="text" class="function-input hidden" value="">
+                </div>
+
+                <!-- Fourier Inputs -->
+                <div id="bc_${side}_fourier_inputs" class="hidden space-y-2">
+                    <label for="bc_${side}_h_type">Heat Transfer Coeff. (W/m²K)</label>
+                    <select id="bc_${side}_h_type" data-side="${side}" data-param="h" class="bc-param-type-selector">
+                        <option value="constant">Constant</option><option value="function">Function (t)</option>
+                    </select>
+                    <input id="bc_${side}_h_const" type="number" value="${p.h.value}" step="any">
+                    <input id="bc_${side}_h_func" type="text" class="function-input hidden" value="">
+                    
+                    <label for="bc_${side}_T_inf_type">Ambient Temperature (K)</label>
+                    <select id="bc_${side}_T_inf_type" data-side="${side}" data-param="T_inf" class="bc-param-type-selector">
+                        <option value="constant">Constant</option><option value="function">Function (t)</option>
+                    </select>
+                    <input id="bc_${side}_T_inf_const" type="number" value="${p.T_inf.value}" step="any">
+                    <input id="bc_${side}_T_inf_func" type="text" class="function-input hidden" value="">
+                </div>
+            `;
+            return container;
+        }
+
+        function createInitialConditionInput(p) {
+            const container = document.createElement('div');
+            container.className = 'param-item space-y-2';
+            container.innerHTML = `
+                <label for="${p.id}-type">${p.label}</label>
+                <select id="${p.id}-type" data-id="${p.id}" class="initial-type-selector">
+                    <option value="constant">Constant</option>
+                    <option value="linear">Linear Profile</option>
+                    <option value="function">Function (z)</option>
+                </select>
+                <input id="${p.id}-const" type="number" value="${p.value}" step="any">
+                <input id="${p.id}-func" type="text" placeholder="e.g., 300 + 10*Math.sin(z*Math.PI)" class="function-input hidden" value="${p.func}">
+            `;
+            return container;
+        }
+
+        function setupParamUI() {
+            const matContainer = document.getElementById('materialProperties');
+            const bcContainer = document.getElementById('boundaryConditions');
+            const initialContainer = document.getElementById('initialConditions');
+            matContainer.innerHTML = '';
+            bcContainer.innerHTML = '';
+            initialContainer.innerHTML = '';
+
+            paramDefinitions.material.forEach(p => matContainer.appendChild(createParamInput(p)));
+            paramDefinitions.boundary.forEach(p => bcContainer.appendChild(createBoundaryConditionInput(p)));
+            paramDefinitions.initial.forEach(p => initialContainer.appendChild(createInitialConditionInput(p)));
+            
+            // Event Handlers for UI changes
+            document.querySelectorAll('.param-type-selector, .initial-type-selector, .bc-param-type-selector').forEach(sel => {
+                sel.addEventListener('change', handleSelectorChange);
+                handleSelectorChange({ target: sel }); // Trigger initial state
+            });
+            document.querySelectorAll('.bc-type-selector').forEach(sel => {
+                sel.addEventListener('change', handleBCTypeChange);
+                handleBCTypeChange({ target: sel }); // Trigger initial state
+            });
+
+            // Add event listeners for CFL calculation
+            const cflInputs = ['dt', 'Nz', 'length', 'kappa-const', 'rho_ref-const', 'Cp-const'];
+            cflInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('input', updateCFLStatus);
+                }
+            });
+            
+            lengthInput.addEventListener('input', () => {
+                heightInput.value = lengthInput.value;
+            });
+        }
+        
+        function handleSelectorChange(e) {
+            const sel = e.target;
+            let id;
+            if (sel.dataset.id) {
+                id = sel.dataset.id;
+            } else {
+                id = 'bc_' + sel.dataset.side + '_' + sel.dataset.param;
+            }
+            
+            const constInput = document.getElementById(id + '_const') || document.getElementById(id + '-const');
+            const funcInput = document.getElementById(id + '_func') || document.getElementById(id + '-func');
+            
+            const isLinearInitial = sel.classList.contains('initial-type-selector') && sel.value === 'linear';
+            
+            if (constInput) constInput.classList.toggle('hidden', sel.value !== 'constant');
+            if (funcInput) funcInput.classList.toggle('hidden', sel.value !== 'function' || isLinearInitial);
+        }
+
+        function handleBCTypeChange(e) {
+            const side = e.target.dataset.side;
+            const type = e.target.value;
+            document.getElementById(`bc_${side}_dirichlet_inputs`).classList.toggle('hidden', type !== 'dirichlet');
+            document.getElementById(`bc_${side}_flux_inputs`).classList.toggle('hidden', type !== 'flux');
+            document.getElementById(`bc_${side}_fourier_inputs`).classList.toggle('hidden', type !== 'fourier');
+        }
+        
+        function getParams() {
+            const p = { g: 9.81, epsilon: 1e-3, v_left: 0.0, v_right: 0.0 };
+            const simpleInputs = document.querySelectorAll('#paramsContainer input[type="number"]:not([id*="_const"])');
+            simpleInputs.forEach(input => { p[input.id] = parseFloat(input.value); });
+            
+            // Material properties
+            paramDefinitions.material.forEach(def => {
+                const type = document.getElementById(`${def.id}-type`).value;
+                p[def.id] = {
+                    type: type,
+                    value: parseFloat(document.getElementById(`${def.id}-const`).value),
+                    funcStr: document.getElementById(`${def.id}-func`).value
+                };
+            });
+            
+            // Boundary conditions
+            paramDefinitions.boundary.forEach(def => {
+                const side = def.side;
+                p[`bc_${side}`] = { type: document.getElementById(`bc_${side}_type`).value };
+                ['T', 'q', 'h', 'T_inf'].forEach(param => {
+                    const typeSelector = document.getElementById(`bc_${side}_${param}_type`);
+                    if (typeSelector) {
+                        p[`bc_${side}`][param] = {
+                            type: typeSelector.value,
+                            value: parseFloat(document.getElementById(`bc_${side}_${param}_const`).value),
+                            funcStr: document.getElementById(`bc_${side}_${param}_func`).value
+                        };
+                    }
+                });
+            });
+
+            // Initial conditions
+            paramDefinitions.initial.forEach(def => {
+                const type = document.getElementById(`${def.id}-type`).value;
+                p[def.id] = {
+                    type: type,
+                    value: parseFloat(document.getElementById(`${def.id}-const`).value),
+                    funcStr: document.getElementById(`${def.id}-func`).value
+                };
+            });
+
+            p.Nz = parseInt(p.Nz);
+            p.dz = p.length / (p.Nz - 1);
+            p.z = Array.from({ length: p.Nz }, (_, i) => i * p.dz);
+            p.n_steps = Math.floor(p.total_time / p.dt);
+            simState.functionCache = {};
+            return p;
+        }
+        
+        function parseFluentIf(funcStr) {
+            if (!funcStr) return '';
+            const fluentIfRegex = /\bif\s*\(([^;]+);([^;]+);([^)]+)\)/g;
+            let parsed = funcStr.replace(fluentIfRegex, '($1 ? $2 : $3)');
+            // Keep replacing until no more matches are found for nested ifs
+            while(parsed.match(fluentIfRegex)) {
+                parsed = parsed.replace(fluentIfRegex, '($1 ? $2 : $3)');
+            }
+            return parsed;
+        }
+
+        function getPropValue(prop, t, T, z=null) {
+            if (prop.type === 'constant') {
+                return prop.value;
+            }
+            if (!prop.funcStr) return prop.value;
+
+            try {
+                if (!simState.functionCache[prop.funcStr]) {
+                    const parsedFuncStr = parseFluentIf(prop.funcStr);
+                    simState.functionCache[prop.funcStr] = new Function('t', 'T', 'z', 'return ' + parsedFuncStr);
+                }
+                const result = simState.functionCache[prop.funcStr](t, T, z);
+                if(isNaN(result) || !isFinite(result)) {
+                    throw new Error("Function returned NaN or Infinity");
+                }
+                return result;
+            } catch (e) {
+                let errorMessage = `ERROR in property function "${prop.funcStr}": ${e.message}.`;
+                if (e instanceof ReferenceError && e.message.includes("is not defined")) {
+                    errorMessage += `\nHINT: Did you forget to add "Math." before a function (e.g., Math.sin, Math.tanh)?`;
+                }
+                log(errorMessage);
+                finishSimulation();
+                statusDiv.textContent = `Status: ERROR in user function. See log.`;
+                statusDiv.classList.add('text-red-600');
+                throw new Error("Stopping simulation due to function error.");
             }
         }
 
-        // --- Main Simulation Logic ---
+        // --- CFL Stability Calculation ---
+        function updateCFLStatus() {
+            const cflBox = document.getElementById('cfl-indicator');
+            try {
+                // Get parameters from the UI
+                const dt = parseFloat(document.getElementById('dt').value);
+                const Nz = parseInt(document.getElementById('Nz').value);
+                const length = parseFloat(document.getElementById('length').value);
+                
+                // For the CFL check, we use the constant values for material properties
+                const kappa = parseFloat(document.getElementById('kappa-const').value);
+                const rho = parseFloat(document.getElementById('rho_ref-const').value);
+                const Cp = parseFloat(document.getElementById('Cp-const').value);
+
+                if ([dt, Nz, length, kappa, rho, Cp].some(isNaN)) {
+                    throw new Error("One or more parameters are not valid numbers.");
+                }
+
+                if (Nz <= 1) { throw new Error("Nz must be greater than 1."); }
+                const dz = length / (Nz - 1);
+                if (dz === 0) { throw new Error("Domain length or grid points result in dz=0."); }
+                
+                const alpha = kappa / (rho * Cp);
+                const cflValue = (alpha * dt) / (dz * dz);
+
+                let line1Text = `Stability (CFL): ${cflValue.toExponential(3)}`;
+                let line2Text = '';
+                let colorClasses = {};
+
+                if (cflValue > 0.5) {
+                    colorClasses = { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', text2: 'text-red-700' };
+                    line2Text = 'Unstable! Decrease Δt or increase grid points.';
+                } else if (cflValue > 0.45) {
+                    colorClasses = { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', text2: 'text-yellow-700' };
+                    line2Text = 'Near stability limit. Monitor results closely.';
+                } else if (cflValue > 0.25) {
+                    colorClasses = { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', text2: 'text-green-700' };
+                    line2Text = 'Stable and efficient.';
+                } else {
+                    colorClasses = { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', text2: 'text-blue-700' };
+                    line2Text = 'Very stable. You could increase Δt to speed up.';
+                }
+                
+                cflBox.className = `p-3 rounded-lg border transition-colors duration-300 ${colorClasses.bg} ${colorClasses.border} ${colorClasses.text}`;
+                
+                cflBox.innerHTML = `
+                    <p class="font-semibold">${line1Text}</p>
+                    <p class="text-sm mt-1 ${colorClasses.text2}">${line2Text}</p>
+                `;
+
+            } catch (e) {
+                cflBox.className = 'p-3 rounded-lg border transition-colors duration-300 bg-gray-100 border-gray-300 text-gray-800';
+                cflBox.innerHTML = `
+                    <p class="font-semibold">Stability (CFL): Invalid</p>
+                    <p class="text-sm mt-1 text-gray-600">Could not calculate. Check parameters.</p>
+                `;
+                console.warn("CFL calculation error:", e.message);
+            }
+        }
+
+        // --- Main Simulation Logic (SIMPLE-like Algorithm) ---
         function simulationStep() {
             if (!simState.running || simState.paused) return;
-            // Note: n_steps can change if user continues with a new total_time
             if (simState.n >= simState.params.n_steps) {
                 finishSimulation();
                 return;
             }
-
-            const { params, v_old_timestep, T_old_timestep } = { params: simState.params, v_old_timestep: simState.v.slice(), T_old_timestep: simState.T.slice() };
-            let inner_iter_converged = false, p1_final = 0, p2_final = 0, iters_final = 0, resT_final = 0, resV_final = 0;
             
-            for (let inner_iter = 0; inner_iter < params.inner_iter_max; inner_iter++) { const T_prev_iter = simState.T.slice(); const v_prev_iter = simState.v.slice(); let p1 = 0, p2 = 0; let T_new; for(let p2_iter=0; p2_iter < 20; p2_iter++) { const dfdT = calculate_dfdT(T_prev_iter, params.T_solidus, params.T_liquidus); const C_eff = Array.from({length: params.Nz}, (_, i) => params.rho_ref * (params.Cp + params.L_f * dfdT[i])); const alpha_T = params.kappa * params.dt / (2 * params.dz ** 2); const main_diag_T = Array.from({length: params.Nz-2}, (_, i) => C_eff[i+1] + 2 * alpha_T); const lower_diag_T = new Array(params.Nz-3).fill(-alpha_T); const upper_diag_T = new Array(params.Nz-3).fill(-alpha_T); const rhs_T = new Array(params.Nz-2).fill(0); for(let i=0; i<params.Nz-2; i++) { rhs_T[i] = (C_eff[i+1] - 2 * alpha_T) * T_old_timestep[i+1] + alpha_T * (T_old_timestep[i+2] + T_old_timestep[i]) - C_eff[i+1] * v_prev_iter[i+1] * p2 * params.dt; } rhs_T[0] += alpha_T * params.T_left; rhs_T[params.Nz-3] += alpha_T * params.T_right; const T_internal = solve_tridiagonal(lower_diag_T, main_diag_T, upper_diag_T, rhs_T); T_new = [params.T_left, ...T_internal, params.T_right]; let integral_residual = 0; for(let i=1; i<params.Nz-1; i++) { const T_laplacian = (T_new[i+1] - 2*T_new[i] + T_new[i-1]) / params.dz**2; integral_residual += ( C_eff[i] * ((T_new[i] - T_old_timestep[i]) / params.dt + v_prev_iter[i] * p2) - params.kappa * T_laplacian) * params.dz; } if (Math.abs(integral_residual) < 1e-6) break; let denominator = 0; for (let i = 1; i < params.Nz - 1; i++) denominator += C_eff[i] * v_prev_iter[i]; if (Math.abs(denominator) > 1e-9) p2 += -0.5 * integral_residual / (denominator*params.dz); else break; } simState.T = T_new.slice(); const buoyancy_term = Array.from({length: params.Nz}, (_,i) => params.rho_ref * params.g * params.beta * (simState.T[i] - params.T_ref)); const alpha_v = params.viscosity * params.dt / (2 * params.rho_ref * params.dz**2); const f_prev = calculate_f(T_prev_iter, params.T_solidus, params.T_liquidus); const mushy_coeff_prev = Array.from({length:params.Nz}, (_,i) => params.A_mush * (1 - f_prev[i])**2 / (f_prev[i]**3 + params.epsilon)); const main_diag_v = Array.from({length: params.Nz - 2}, (_, i) => 1 + 2 * alpha_v + (params.dt/params.rho_ref) * mushy_coeff_prev[i+1]); const lower_diag_v = new Array(params.Nz - 3).fill(-alpha_v); const upper_diag_v = new Array(params.Nz - 3).fill(-alpha_v); const rhs_v_star = new Array(params.Nz-2).fill(0); for(let i=1; i<params.Nz-1; i++) rhs_v_star[i-1] = v_old_timestep[i] + alpha_v * (v_old_timestep[i+1] - 2*v_old_timestep[i] + v_old_timestep[i-1]) + (params.dt/params.rho_ref) * buoyancy_term[i]; rhs_v_star[0] += alpha_v * params.v_left; rhs_v_star[params.Nz-3] += alpha_v * params.v_right; const v_star_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_v_star); const v_star = [params.v_left, ...v_star_internal, params.v_right]; const rhs_p = new Array(params.Nz-2).fill(- (params.dt / params.rho_ref)); const v_p_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_p); const v_p = [0, ...v_p_internal, 0]; const sum_v_star = v_star.reduce((a, b) => a + b, 0) * params.dz; const sum_v_p = v_p.reduce((a, b) => a + b, 0) * params.dz; if (Math.abs(sum_v_p) > 1e-12) p1 = -sum_v_star / sum_v_p; simState.v = Array.from({length: params.Nz}, (_, i) => v_star[i] + p1 * v_p[i]); simState.v[0] = params.v_left; simState.v[params.Nz - 1] = params.v_right; const temp_residual = Math.max(...simState.T.map((val, i) => Math.abs(val - T_prev_iter[i]))); const vel_residual = Math.max(...simState.v.map((val, i) => Math.abs(val - v_prev_iter[i]))); p1_final = p1; p2_final = p2; iters_final = inner_iter + 1; resT_final = temp_residual; resV_final = vel_residual; if (temp_residual < params.convergence_delta) { inner_iter_converged = true; break; } }
-            
-            if(!inner_iter_converged) log(`WARN: No convergence! ${formatSummaryLogLine((simState.n + 1) * params.dt, p1_final, p2_final, iters_final, resT_final, resV_final)}`);
-
-            const time = (simState.n + 1) * params.dt;
-            const log_interval_steps = Math.max(1, Math.floor(params.log_update_time / params.dt));
-
-            if ((simState.n + 1) % log_interval_steps === 0) {
-                const f_new = calculate_f(simState.T, params.T_solidus, params.T_liquidus);
-                const f_ave = f_new.reduce((a,b) => a + b, 0) / f_new.length;
-
-                updateLivePlots(params.z, simState.T, simState.v, time);
+            try {
+                const { params, v_old_timestep, T_old_timestep } = { params: simState.params, v_old_timestep: simState.v.slice(), T_old_timestep: simState.T.slice() };
+                let inner_iter_converged = false, p1_final = 0, p2_final = 0, iters_final = 0, resT_final = 0, resV_final = 0;
+                const time = (simState.n + 1) * params.dt;
                 
-                Plotly.extendTraces('fAvePlot', { x: [[time]], y: [[f_ave]] }, [0]);
-                Plotly.extendTraces('p1Plot', { x: [[time]], y: [[p1_final]] }, [0]);
-                Plotly.extendTraces('p2Plot', { x: [[time]], y: [[p2_final]] }, [0]);
+                // Initialization for the time step (k=0)
+                // simState.T and simState.v hold T^{n+1,(0)} and v^{n+1,(0)} which are initially T^n and v^n
                 
-                log(formatSummaryLogLine(time, p1_final, p2_final, iters_final, resT_final, resV_final));
+                for (let inner_iter = 0; inner_iter < params.inner_iter_max; inner_iter++) {
+                    const T_prev_iter = simState.T.slice(); // T^{n+1,(k)}
+                    const v_prev_iter = simState.v.slice(); // v^{n+1,(k)}
+                    let p1 = 0, p2 = 0;
+                    
+                    // --- 1. Solve for Temperature and p2 ---
+                    // This sub-loop finds p2 and T^{n+1,(k+1)} using v^{n+1,(k)}
+                    let T_new;
+                    for(let p2_iter=0; p2_iter < 20; p2_iter++) {
+                        const T_solidus_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_solidus, time, T_prev_iter[i]));
+                        const T_liquidus_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_liquidus, time, T_prev_iter[i]));
+                        const dfdT = calculate_dfdT(T_prev_iter, T_solidus_arr, T_liquidus_arr);
+                        
+                        const C_eff = Array.from({length: params.Nz}, (_, i) => {
+                            const rho = getPropValue(params.rho_ref, time, T_prev_iter[i]);
+                            const Cp = getPropValue(params.Cp, time, T_prev_iter[i]);
+                            const Lf = getPropValue(params.L_f, time, T_prev_iter[i]);
+                            return rho * (Cp + Lf * dfdT[i]);
+                        });
+
+                        const kappa_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.kappa, time, T_prev_iter[i]));
+                        const alpha_T_arr = Array.from({length: params.Nz}, (_, i) => kappa_arr[i] / (2 * params.dz ** 2));
+                        
+                        const a = new Array(params.Nz - 1).fill(0), b = new Array(params.Nz).fill(0), c = new Array(params.Nz - 1).fill(0), d = new Array(params.Nz).fill(0);
+                        
+                        for(let i=1; i<params.Nz-1; i++) {
+                            const alpha_i = alpha_T_arr[i] * params.dt;
+                            a[i-1] = -alpha_i;
+                            b[i]   = C_eff[i] + 2 * alpha_i;
+                            c[i]   = -alpha_i;
+                            d[i]   = (C_eff[i] - 2 * alpha_i) * T_old_timestep[i] + alpha_i * (T_old_timestep[i+1] + T_old_timestep[i-1]) - C_eff[i] * v_prev_iter[i] * p2 * params.dt;
+                        }
+                        
+                        // Boundary Conditions for Temperature...
+                        switch(params.bc_left.type) {
+                            case 'dirichlet': b[0] = 1.0; c[0] = 0.0; d[0] = getPropValue(params.bc_left.T, time, T_prev_iter[0]); break;
+                            case 'flux': { const q_left = getPropValue(params.bc_left.q, time, T_prev_iter[0]); const alpha_0 = alpha_T_arr[0] * params.dt; b[0] = C_eff[0] + alpha_0; c[0] = -alpha_0; d[0] = (C_eff[0] - alpha_0) * T_old_timestep[0] + alpha_0 * T_old_timestep[1] - C_eff[0] * v_prev_iter[0] * p2 * params.dt + (params.dt / params.dz) * q_left; break; }
+                            case 'fourier': { const h_left = getPropValue(params.bc_left.h, time, T_prev_iter[0]); const T_inf_left = getPropValue(params.bc_left.T_inf, time, T_prev_iter[0]); const alpha_0 = alpha_T_arr[0] * params.dt; const fourier_term = (params.dt / params.dz) * h_left; b[0] = C_eff[0] + alpha_0 + fourier_term; c[0] = -alpha_0; d[0] = (C_eff[0] - alpha_0 - fourier_term) * T_old_timestep[0] + alpha_0 * T_old_timestep[1] - C_eff[0] * v_prev_iter[0] * p2 * params.dt + 2 * fourier_term * T_inf_left; break; }
+                        }
+                        const i_end = params.Nz - 1;
+                        switch(params.bc_right.type) {
+                            case 'dirichlet': b[i_end] = 1.0; a[i_end-1] = 0.0; d[i_end] = getPropValue(params.bc_right.T, time, T_prev_iter[i_end]); break;
+                            case 'flux': { const q_right = getPropValue(params.bc_right.q, time, T_prev_iter[i_end]); const alpha_end = alpha_T_arr[i_end] * params.dt; a[i_end-1] = -alpha_end; b[i_end] = C_eff[i_end] + alpha_end; d[i_end] = (C_eff[i_end] - alpha_end) * T_old_timestep[i_end] + alpha_end * T_old_timestep[i_end - 1] - C_eff[i_end] * v_prev_iter[i_end] * p2 * params.dt - (params.dt / params.dz) * q_right; break; }
+                            case 'fourier': { const h_right = getPropValue(params.bc_right.h, time, T_prev_iter[i_end]); const T_inf_right = getPropValue(params.bc_right.T_inf, time, T_prev_iter[i_end]); const alpha_end = alpha_T_arr[i_end] * params.dt; const fourier_term = (params.dt / params.dz) * h_right; a[i_end-1] = -alpha_end; b[i_end] = C_eff[i_end] + alpha_end + fourier_term; d[i_end] = (C_eff[i_end] - alpha_end - fourier_term) * T_old_timestep[i_end] + alpha_end * T_old_timestep[i_end-1] - C_eff[i_end] * v_prev_iter[i_end] * p2 * params.dt + 2 * fourier_term * T_inf_right; break; }
+                        }
+
+                        T_new = solve_tridiagonal(a, b, c, d);
+                        
+                        let integral_residual = 0;
+                        for(let i=1; i<params.Nz-1; i++) {
+                            const T_laplacian = (T_new[i+1] - 2*T_new[i] + T_new[i-1]) / params.dz**2;
+                            integral_residual += ( C_eff[i] * ((T_new[i] - T_old_timestep[i]) / params.dt + v_prev_iter[i] * p2) - kappa_arr[i] * T_laplacian) * params.dz;
+                        }
+                        if (Math.abs(integral_residual) < 1e-6) break;
+                        let denominator = 0;
+                        for (let i = 1; i < params.Nz - 1; i++) denominator += C_eff[i] * v_prev_iter[i];
+                        if (Math.abs(denominator) > 1e-9) p2 += -0.5 * integral_residual / (denominator*params.dz); else break;
+                    }
+                    simState.T = T_new.slice(); // T is now T^{n+1,(k+1)}
+
+                    // --- 2. Solve for Velocity and p1 using T^{n+1,(k+1)} ---
+                    const buoyancy_term = Array.from({length: params.Nz}, (_,i) => {
+                        const rho = getPropValue(params.rho_ref, time, simState.T[i]);
+                        const beta = getPropValue(params.beta, time, simState.T[i]);
+                        const T_ref = getPropValue(params.T_ref, time, simState.T[i]);
+                        return rho * params.g * beta * (simState.T[i] - T_ref);
+                    });
+                    
+                    const T_solidus_arr_vel = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_solidus, time, simState.T[i]));
+                    const T_liquidus_arr_vel = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_liquidus, time, simState.T[i]));
+                    const f_current_iter = calculate_f(simState.T, T_solidus_arr_vel, T_liquidus_arr_vel);
+                    
+                    const mushy_coeff_current_iter = Array.from({length:params.Nz}, (_,i) => {
+                        const A_mush = getPropValue(params.A_mush, time, simState.T[i]);
+                        return A_mush * (1 - f_current_iter[i])**2 / (f_current_iter[i]**3 + params.epsilon);
+                    });
+                    
+                    const rho_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.rho_ref, time, simState.T[i]));
+                    const visc_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.viscosity, time, simState.T[i]));
+                    const alpha_v_arr = Array.from({length: params.Nz}, (_, i) => visc_arr[i] * params.dt / (2 * rho_arr[i] * params.dz**2));
+                    
+                    const main_diag_v = Array.from({length: params.Nz - 2}, (_, i) => 1 + 2 * alpha_v_arr[i+1] + (params.dt/rho_arr[i+1]) * mushy_coeff_current_iter[i+1]);
+                    const lower_diag_v = Array.from({length: params.Nz - 3}, (_, i) => -alpha_v_arr[i+1]);
+                    const upper_diag_v = Array.from({length: params.Nz - 3}, (_, i) => -alpha_v_arr[i+2]);
+                    
+                    const rhs_v_star = new Array(params.Nz-2).fill(0);
+                    for(let i=1; i<params.Nz-1; i++) {
+                        rhs_v_star[i-1] = v_old_timestep[i] + alpha_v_arr[i] * (v_old_timestep[i+1] - 2*v_old_timestep[i] + v_old_timestep[i-1]) + (params.dt/rho_arr[i]) * buoyancy_term[i];
+                    }
+                    rhs_v_star[0] += alpha_v_arr[1] * params.v_left;
+                    rhs_v_star[params.Nz-3] += alpha_v_arr[params.Nz-2] * params.v_right;
+                    
+                    const v_star_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_v_star);
+                    const v_star = [params.v_left, ...v_star_internal, params.v_right];
+                    const rhs_p = Array.from({length: params.Nz-2}, (_, i) => -(params.dt / rho_arr[i+1]));
+                    const v_p_internal = solve_tridiagonal(lower_diag_v, main_diag_v, upper_diag_v, rhs_p);
+                    const v_p = [0, ...v_p_internal, 0];
+                    
+                    const sum_v_star = v_star.reduce((a, b) => a + b, 0) * params.dz;
+                    const sum_v_p = v_p.reduce((a, b) => a + b, 0) * params.dz;
+                    if (Math.abs(sum_v_p) > 1e-12) p1 = -sum_v_star / sum_v_p;
+                    
+                    simState.v = Array.from({length: params.Nz}, (_, i) => v_star[i] + p1 * v_p[i]);
+                    simState.v[0] = params.v_left; simState.v[params.Nz - 1] = params.v_right; // v is now v^{n+1,(k+1)}
+                    
+                    // --- 3. Convergence Check ---
+                    resT_final = Math.max(...simState.T.map((val, i) => Math.abs(val - T_prev_iter[i])));
+                    resV_final = Math.max(...simState.v.map((val, i) => Math.abs(val - v_prev_iter[i])));
+                    p1_final = p1; p2_final = p2; iters_final = inner_iter + 1;
+                    
+                    if (resT_final < params.convergence_delta_T && resV_final < params.convergence_delta_V) {
+                        inner_iter_converged = true;
+                        break;
+                    }
+                }
                 
-                if (simState.logResultsEnabled) {
+                // --- Calculate final values for logging ---
+                const minT_final = Math.min(...simState.T);
+                const maxT_final = Math.max(...simState.T);
+                const minV_final = Math.min(...simState.v);
+                const maxV_final = Math.max(...simState.v);
+
+                if(!inner_iter_converged) {
+                    const logMessage = formatSummaryLogLine(time, p1_final, p2_final, iters_final, resT_final, resV_final, minT_final, maxT_final, minV_final, maxV_final) + ' |    WARN: No convergence!';
+                    log(logMessage);
+                }
+
+                const isLastStep = (simState.n + 1) === params.n_steps;
+
+                const plot_interval_steps = Math.max(1, Math.floor(params.plot_update_time / params.dt));
+                if ((simState.n + 1) % plot_interval_steps === 0 || isLastStep) {
+                    updateLivePlots(params.z, simState.T, simState.v, time);
+                    updateHistoryPlots(time, p1_final, p2_final);
+                    update2DPlots(time);
+                }
+
+                const sim_log_interval_steps = Math.max(1, Math.floor(params.sim_log_update_time / params.dt));
+                if ((simState.n + 1) % sim_log_interval_steps === 0 || isLastStep) {
+                    const logMessage = formatSummaryLogLine(time, p1_final, p2_final, iters_final, resT_final, resV_final, minT_final, maxT_final, minV_final, maxV_final);
+                    log(logMessage);
+                    if (simState.logSimEnabled) {
+                        simState.summaryLogContent += logMessage + '\n';
+                        downloadSimLogBtn.disabled = false;
+                    }
+                }
+
+                const results_log_interval_steps = Math.max(1, Math.floor(params.results_log_update_time / params.dt));
+                if (simState.logResultsEnabled && ((simState.n + 1) % results_log_interval_steps === 0 || isLastStep)) {
+                    const T_solidus_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_solidus, time, simState.T[i]));
+                    const T_liquidus_arr = Array.from({length: params.Nz}, (_, i) => getPropValue(params.T_liquidus, time, simState.T[i]));
+                    const f = calculate_f(simState.T, T_solidus_arr, T_liquidus_arr);
+                    const f_ave = f.reduce((a,b) => a + b, 0) / f.length;
+
                     for (let i = 0; i < params.Nz; i++) {
-                        const line = formatDetailedLogLine(time, params.z[i], simState.T[i], simState.v[i], p1_final, p2_final, iters_final, resT_final, resV_final);
+                        const line = formatDetailedLogLine(time, params.z[i], simState.T[i], simState.v[i], f[i], f_ave, p1_final, p2_final, iters_final, resT_final, resV_final);
                         logResults(line);
                         simState.detailedLogContent += line + '\n';
                     }
                     downloadResultsBtn.disabled = false;
                 }
+
+            } catch (error) {
+                console.error("Simulation step failed:", error);
+                cancelAnimationFrame(simState.animationFrameId);
+                return;
             }
+
             simState.n++;
             updateUI();
             simState.animationFrameId = requestAnimationFrame(simulationStep);
         }
 
         function startSimulation() {
-            if (simState.running && !simState.paused) return; // Already running
+            if (simState.running && !simState.paused) return;
+            statusDiv.classList.remove('text-red-600');
 
-            // Case 1: Resume from pause
             if (simState.paused) {
+                // Logic for resuming from a paused state
                 simState.paused = false;
                 simState.running = true;
-            } 
-            // Case 2: Continue a finished simulation
-            else if (simState.finished) {
-                simState.params = getParams(); // Get potentially new params
-                simState.running = true;
+            } else if (simState.finished && !parametricStudyCheck.checked) {
+                // --- FIXED: Logic for continuing a finished run ---
+                log(`\n--- Continuing Run #${studyRunCounter} to new time... ---`);
+                simState.params = getParams(); // Get new total_time, which updates n_steps
                 simState.finished = false;
-                log("--- Continuing simulation ---");
-            }
-            // Case 3: Start a new simulation from scratch
-            else {
-                simState.params = getParams();
-                simState.logSimEnabled = enableSimLogCheck.checked;
-                simState.logResultsEnabled = enableResultsLogCheck.checked;
-                downloadResultsBtn.disabled = !simState.logResultsEnabled;
-
-                simState.n = 0;
-                simState.v = new Array(simState.params.Nz).fill(0);
-                simState.T = new Array(simState.params.Nz).fill(simState.params.T_left);
-                simState.T[0] = simState.params.T_left; simState.T[simState.params.Nz-1] = simState.params.T_right;
-                
-                logDiv.textContent = simState.logSimEnabled ? 'Time(s)  | p1         | p2         | Iters | max(abs(resT)) | max(abs(resV))\n' + '---------+------------+------------+-------+----------------+----------------\n' : 'Simulation Log disabled.';
-                resultsLogDiv.textContent = simState.logResultsEnabled ? 'Time    z         T       v         p1        p2        Iters max(resT)    max(resV)\n' : 'Detailed Results Log disabled.';
-                simState.detailedLogContent = simState.logResultsEnabled ? resultsLogDiv.textContent : '';
-
-                setupPlots(simState.params.z);
-                updateLivePlots(simState.params.z, simState.T, simState.v, 0);
-                
-                const initial_f_ave = calculate_f(simState.T, simState.params.T_solidus, simState.params.T_liquidus).reduce((a,b) => a+b, 0) / simState.params.Nz;
-                updateHistoryPlots([0.0], [initial_f_ave], [0.0], [0.0]);
-                
                 simState.running = true;
+                // Note: We DO NOT reset n, T, v, or the plots
+            } else {
+                // Logic for starting a brand new run (or a new parametric run)
+                try {
+                    if (!parametricStudyCheck.checked) {
+                        resetParametricStudy();
+                    }
+                    studyRunCounter++;
+
+                    simState.params = getParams();
+                    
+                    if (simState.params.Nz < 4) {
+                        log("ERROR: Grid Points (Nz) must be at least 4 for the solver to work.");
+                        statusDiv.textContent = `Status: ERROR. Grid points must be >= 4.`;
+                        statusDiv.classList.add('text-red-600');
+                        studyRunCounter--;
+                        return;
+                    }
+
+                    simState.logSimEnabled = enableSimLogCheck.checked;
+                    simState.logResultsEnabled = enableResultsLogCheck.checked;
+                    downloadResultsBtn.disabled = !simState.logResultsEnabled;
+                    downloadSimLogBtn.disabled = !simState.logSimEnabled;
+
+                    addNewTraces(simState.params);
+                    
+                    const historyTraceIndex = studyRunCounter - 1;
+                    const p2TraceIndex = historyTraceIndex * 2;
+
+                    Plotly.addTraces('fAvePlot', plotData.fAve[historyTraceIndex]);
+                    Plotly.addTraces('p1Plot', plotData.p1[historyTraceIndex]);
+                    Plotly.addTraces('p2Plot', [plotData.p2[p2TraceIndex], plotData.p2[p2TraceIndex + 1]]);
+
+
+                    simState.n = 0;
+                    simState.finished = false;
+                    simState.v = new Array(simState.params.Nz).fill(0);
+                    
+                    // Setup Initial Temperature Profile
+                    const initialTParams = simState.params.T_initial;
+                    if (initialTParams.type === 'constant') {
+                        simState.T = new Array(simState.params.Nz).fill(initialTParams.value);
+                    } else if (initialTParams.type === 'function') {
+                        try {
+                            const parsedFuncStr = parseFluentIf(initialTParams.funcStr);
+                            const initialTFunc = new Function('t', 'T', 'z', `return ${parsedFuncStr}`);
+                            simState.T = simState.params.z.map(z_i => initialTFunc(null, null, z_i));
+                        } catch (e) {
+                            log(`ERROR in initial temperature function "${initialTParams.funcStr}": ${e.message}`);
+                            statusDiv.textContent = `Status: ERROR in initial T(z) function. See log.`;
+                            statusDiv.classList.add('text-red-600');
+                            studyRunCounter--;
+                            return;
+                        }
+                    } else { // 'linear' profile
+                        const T_left_initial = getPropValue(simState.params.bc_left.T, 0, null);
+                        const T_right_initial = getPropValue(simState.params.bc_right.T, 0, null);
+                        simState.T = Array.from({length: simState.params.Nz}, (_,i) => T_left_initial + (T_right_initial - T_left_initial) * (i / (simState.params.Nz - 1)) );
+                    }
+                    
+                    // Ensure initial conditions respect boundary conditions at t=0
+                    if (simState.params.bc_left.type === 'dirichlet') {
+                        simState.T[0] = getPropValue(simState.params.bc_left.T, 0, simState.T[0]);
+                    }
+                    if (simState.params.bc_right.type === 'dirichlet') {
+                        simState.T[simState.params.Nz - 1] = getPropValue(simState.params.bc_right.T, 0, simState.T[simState.params.Nz - 1]);
+                    }
+
+                    
+                    if (studyRunCounter === 1) {
+                        const summaryLogHeader = 'Time(s)  | p1         | p2         | Iters | max(abs(resT)) | max(abs(resV)) | min(T)   | max(T)   | min(V)     | max(V)\n' + 
+                                                 '---------+------------+------------+-------+----------------+----------------+----------+----------+------------+------------\n';
+                        logDiv.textContent = simState.logSimEnabled ? summaryLogHeader : 'Simulation Log disabled.';
+                        simState.summaryLogContent = simState.logSimEnabled ? summaryLogHeader : '';
+
+                        const detailedLogHeader = 'Time    z         T       v         f           f_ave         p1        p2        Iters max(resT)    max(resV)\n';
+                        resultsLogDiv.textContent = simState.logResultsEnabled ? detailedLogHeader : 'Detailed Results Log disabled.';
+                        simState.detailedLogContent = simState.logResultsEnabled ? detailedLogHeader : '';
+                    }
+                    log(`\n--- Starting Run #${studyRunCounter} ---`);
+                    
+                    updateLivePlots(simState.params.z, simState.T, simState.v, 0);
+                    updateHistoryPlots(0.0, 0.0, 0.0);
+                    update2DPlots(0);
+                    
+                    simState.running = true;
+                } catch (error) {
+                    console.error("Failed to start simulation:", error);
+                    return;
+                }
             }
             
             simState.animationFrameId = requestAnimationFrame(simulationStep);
@@ -348,131 +1078,467 @@
         function pauseSimulation() { if (!simState.running || simState.paused) return; simState.paused = true; cancelAnimationFrame(simState.animationFrameId); updateUI(); }
         
         function resetSimulation() { 
-            simState.running = false; 
-            simState.paused = false; 
-            simState.finished = false; // Reset the finished flag
-            simState.n = 0; 
+            simState.running = false; simState.paused = false; simState.finished = false; simState.n = 0; 
             if(simState.animationFrameId) cancelAnimationFrame(simState.animationFrameId); 
-            const p = getParams(); 
-            setupPlots(p.z); 
+            
+            resetParametricStudy();
+            setupPlots();
+
             logDiv.textContent = enableSimLogCheck.checked ? '' : 'Simulation Log disabled.'; 
             resultsLogDiv.textContent = enableResultsLogCheck.checked ? '' : 'Detailed Results Log disabled.'; 
+            simState.summaryLogContent = '';
             simState.detailedLogContent = ''; 
+            downloadSimLogBtn.disabled = true;
             downloadResultsBtn.disabled = true; 
             updateUI(); 
+            statusDiv.classList.remove('text-red-600');
         }
 
         function finishSimulation() { 
-            simState.running = false; 
-            simState.paused = false; 
-            simState.finished = true; // Set finished flag
+            simState.running = false; simState.paused = false; simState.finished = true; 
             if(simState.animationFrameId) cancelAnimationFrame(simState.animationFrameId); 
-            log(`--- Simulation reached target time: ${simState.params.total_time.toFixed(1)}s ---`); 
+            log(`--- Run #${studyRunCounter} reached target time: ${simState.params.total_time.toFixed(1)}s ---`); 
             updateUI(); 
         }
 
         // --- Parameter & Data Management ---
-        function showTemporaryMessage(button, message) {
-            const originalText = button.textContent;
-            button.textContent = message;
-            button.disabled = true;
-            setTimeout(() => {
-                button.textContent = originalText;
-                button.disabled = false;
-            }, 2000);
-        }
-
-        function exportParameters() {
-            const paramsToExport = getParams();
-            const blob = new Blob([JSON.stringify(paramsToExport, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'parameters.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function importParameters() {
-            importFile.click();
-        }
-
+        function showTemporaryMessage(button, message) { const originalText = button.textContent; button.disabled = true; setTimeout(() => { button.textContent = originalText; button.disabled = false; }, 2000); }
+        function exportParameters() { const paramsToExport = getParams(); delete paramsToExport.z; const blob = new Blob([JSON.stringify(paramsToExport, null, 2)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'parameters_v4.0.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        function importParameters() { importFile.click(); }
+        
         function handleFileImport(event) {
             const file = event.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     const p = JSON.parse(e.target.result);
+
+                    // For backward compatibility with older parameter files
+                    if (p.log_update_time) {
+                        p.plot_update_time = p.log_update_time;
+                        p.sim_log_update_time = p.log_update_time;
+                        p.results_log_update_time = p.log_update_time;
+                        delete p.log_update_time;
+                    }
+
+                    // --- Populate UI from imported data ---
+
+                    // 1. Simple numeric parameters (e.g., length, Nz, total_time)
                     Object.keys(p).forEach(key => {
-                        const input = document.getElementById(key);
-                        if (input) {
-                            input.value = p[key];
+                        const simpleInput = document.getElementById(key);
+                        if (simpleInput && typeof p[key] === 'number' && !simpleInput.classList.contains('param-type-selector')) {
+                            simpleInput.value = p[key];
                         }
                     });
+
+                    // 2. Material properties
+                    paramDefinitions.material.forEach(def => {
+                        if (p[def.id] && typeof p[def.id] === 'object') {
+                            const typeSel = document.getElementById(`${def.id}-type`);
+                            typeSel.value = p[def.id].type ?? 'constant';
+                            document.getElementById(`${def.id}-const`).value = p[def.id].value ?? '';
+                            document.getElementById(`${def.id}-func`).value = p[def.id].funcStr ?? '';
+                            handleSelectorChange({ target: typeSel });
+                        }
+                    });
+
+                    // 3. Boundary Conditions
+                    ['left', 'right'].forEach(side => {
+                        const bcKey = `bc_${side}`;
+                        if (p[bcKey] && typeof p[bcKey] === 'object') {
+                            const typeSel = document.getElementById(`${bcKey}_type`);
+                            typeSel.value = p[bcKey].type ?? 'dirichlet';
+                            
+                            ['T', 'q', 'h', 'T_inf'].forEach(param => {
+                                if (p[bcKey][param] && typeof p[bcKey][param] === 'object') {
+                                    const paramTypeSel = document.getElementById(`${bcKey}_${param}_type`);
+                                    if (paramTypeSel) {
+                                        paramTypeSel.value = p[bcKey][param].type ?? 'constant';
+                                        document.getElementById(`${bcKey}_${param}_const`).value = p[bcKey][param].value ?? '';
+                                        document.getElementById(`${bcKey}_${param}_func`).value = p[bcKey][param].funcStr ?? '';
+                                        handleSelectorChange({ target: paramTypeSel });
+                                    }
+                                }
+                            });
+                            handleBCTypeChange({ target: typeSel });
+                        }
+                    });
+
+                    // 4. Initial Condition
+                    if (p.T_initial && typeof p.T_initial === 'object') {
+                        const typeSel = document.getElementById('T_initial-type');
+                        typeSel.value = p.T_initial.type ?? 'constant';
+                        document.getElementById('T_initial-const').value = p.T_initial.value ?? '';
+                        document.getElementById('T_initial-func').value = p.T_initial.funcStr ?? '';
+                        handleSelectorChange({ target: typeSel });
+                    }
+
                     showTemporaryMessage(importParamsBtn, 'Imported!');
+                    updateCFLStatus(); // Update CFL indicator after import
+
                 } catch (err) {
                     console.error("Error parsing JSON file:", err);
                     showTemporaryMessage(importParamsBtn, 'Import Error!');
                 }
             };
             reader.readAsText(file);
-            event.target.value = null;
+            event.target.value = null; // Reset file input to allow re-importing the same file
         }
 
-        function loadDefaultParameters() {
-            const defaults = { rho_ref: 940.0, beta: 0.0033, Cp: 1800.0, L_f: 100000, A_mush: 10000, viscosity: 0.06, kappa: 0.2, T_solidus: 305.0, T_liquidus: 310.0, T_ref: 300.0, length: 1.0, Nz: 100, total_time: 500.0, dt: 0.05, T_left: 300.0, T_right: 330.0, inner_iter_max: 1000, convergence_delta: 1e-6, log_update_time: 5.0 };
-            Object.keys(defaults).forEach(key => {
-                const input = document.getElementById(key);
-                if (input) input.value = defaults[key];
-            });
-            showTemporaryMessage(loadDefaultsBtn, 'Defaults Loaded!');
+        function loadDefaultParameters() { 
+            setupParamUI(); 
+            showTemporaryMessage(loadDefaultsBtn, 'Defaults Loaded!'); 
+            updateCFLStatus(); // Update CFL after loading defaults
         }
-
-        function downloadResults() {
-            if (!simState.detailedLogContent) return;
-            const blob = new Blob([simState.detailedLogContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const timeStamp = simState.n > 0 ? `_t${(simState.n * simState.params.dt).toFixed(0)}s` : '';
-            a.download = `simulation_results${timeStamp}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+        function downloadResults() { if (!simState.detailedLogContent) return; const blob = new Blob([simState.detailedLogContent], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const timeStamp = simState.n > 0 ? `_t${(simState.n * simState.params.dt).toFixed(0)}s` : ''; a.download = `simulation_results_run${studyRunCounter}${timeStamp}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        function downloadSimLog() { if (!simState.summaryLogContent) return; const blob = new Blob([simState.summaryLogContent], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const timeStamp = simState.n > 0 ? `_t${(simState.n * simState.params.dt).toFixed(0)}s` : ''; a.download = `simulation_log_run${studyRunCounter}${timeStamp}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
 
         // --- Plotting Functions ---
-        function setupPlots(z) {
-            tempFractionPlotLayout = { title: 'Temperature & Liquid Fraction Profiles', xaxis: { title: 'Position z (m)' }, yaxis: { title: 'Temperature (K)', side: 'left' }, yaxis2: { title: 'Liquid Fraction', side: 'right', overlaying: 'y', zeroline: false, showgrid: false, range: [0, 1]}, legend: { x: 0, y: 1.1, orientation: 'h' }, margin: { l: 60, r: 60, t: 60, b: 50 } };
-            Plotly.newPlot('tempFractionPlot', [ { x: z, y: [], name: 'Temperature', type: 'scatter', mode: 'lines' }, { x: z, y: [], name: 'Lq. Fraction', type: 'scatter', mode: 'lines', yaxis: 'y2' } ], tempFractionPlotLayout);
-            
-            velocityPlotLayout = { title: 'Velocity Profile', xaxis: { title: 'Position z (m)' }, yaxis: { title: 'Velocity (m/s)' }, margin: { l: 60, r: 60, t: 60, b: 50 }};
-            Plotly.newPlot('velocityPlot', [{ x: z, y: [], name: 'Velocity', type: 'scatter', mode: 'lines', line: {color: '#f97316'} }], velocityPlotLayout);
+        let isUpdatingLayouts = false;
 
-            const historyPlotOptions = { margin: { l: 60, r: 30, t: 40, b: 50 }, xaxis: {title: 'Time (s)'} };
-            fAvePlotLayout = { ...historyPlotOptions, title: 'Avg. Liquid Fraction', yaxis: {title: 'f_ave', range: [0, 1]} };
+        function syncLayouts(sourcePlotId, eventData) {
+            if (!groupZoomCheck.checked || isUpdatingLayouts) return;
+
+            isUpdatingLayouts = true;
+
+            const plotIds = ['velocityContourPlot', 'fractionContourPlot', 'tempContourPlot'];
+            const layoutUpdate = {};
+
+            if (eventData['xaxis.autorange'] || eventData['yaxis.autorange']) {
+                layoutUpdate['xaxis.autorange'] = true;
+                layoutUpdate['yaxis.autorange'] = true;
+            } else if (eventData['xaxis.range[0]'] && eventData['yaxis.range[0]']) {
+                layoutUpdate['xaxis.range'] = [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']];
+                layoutUpdate['yaxis.range'] = [eventData['yaxis.range[0]'], eventData['yaxis.range[1]']];
+            } else {
+                isUpdatingLayouts = false;
+                return;
+            }
+
+            const promises = plotIds.map(id => {
+                if (id !== sourcePlotId) {
+                    return Plotly.relayout(id, layoutUpdate);
+                }
+                return Promise.resolve();
+            });
+
+            Promise.all(promises).finally(() => {
+                setTimeout(() => {
+                    isUpdatingLayouts = false;
+                }, 50); 
+            });
+        }
+
+        function resetParametricStudy() {
+            studyRunCounter = 0;
+            plotData = { tempFraction: [], velocity: [], fAve: [], p1: [], p2: [], tempContour: [], velocityContour: [], fractionContour: [] };
+        }
+
+        function setupPlots() {
+            // Layout for Temperature and Liquid Fraction, with AUTOSCALING on both y-axes.
+            tempFractionPlotLayout = { 
+                title: 'Temperature & Liquid Fraction Profiles', 
+                xaxis: { title: 'Position z (m)' }, 
+                yaxis: { title: 'Temperature (K)', side: 'left', autorange: true }, 
+                yaxis2: { title: 'Liquid Fraction', side: 'right', overlaying: 'y', zeroline: false, showgrid: false, autorange: true }, 
+                legend: { x: 0, y: 1.1, orientation: 'h' }, 
+                margin: { l: 60, r: 60, t: 60, b: 50 } 
+            };
+            
+            // Layout for Velocity, which already autoscaled correctly.
+            velocityPlotLayout = { 
+                title: 'Velocity Profile', 
+                xaxis: { title: 'Position z (m)' }, 
+                yaxis: { title: 'Velocity (m/s)' }, 
+                legend: { x: 0, y: 1.1, orientation: 'h' }, 
+                margin: { l: 60, r: 60, t: 60, b: 50 }
+            };
+            
+            const historyPlotOptions = { 
+                margin: { l: 60, r: 60, t: 40, b: 50 }, 
+                xaxis: {title: 'Time (s)'}, 
+                legend: { x: 0, y: 1.1, orientation: 'h' } 
+            };
+
+            // Layout for Average Liquid Fraction, now with AUTOSCALING.
+            fAvePlotLayout = { 
+                ...historyPlotOptions, 
+                title: 'Avg. Liquid Fraction', 
+                yaxis: {title: 'f_ave', autorange: true} 
+            };
+            
+            // Layouts for p1 and p2, which already autoscaled correctly.
             p1PlotLayout = { ...historyPlotOptions, title: 'p1(t)', yaxis: {title: 'p1'} };
-            p2PlotLayout = { ...historyPlotOptions, title: 'p2(t)', yaxis: {title: 'p2'} };
-            Plotly.newPlot('fAvePlot', [{x:[], y:[], mode:'lines', name: 'f_ave'}], fAvePlotLayout);
-            Plotly.newPlot('p1Plot', [{x:[], y:[], mode:'lines', name: 'p1'}], p1PlotLayout);
-            Plotly.newPlot('p2Plot', [{x:[], y:[], mode:'lines', name: 'p2'}], p2PlotLayout);
+            p2PlotLayout = { ...historyPlotOptions, title: 'p2 & Convection Term', yaxis: {title: 'p2'}, yaxis2: { title: 'ρ·Cp·v_max·p2', side: 'right', overlaying: 'y', zeroline: false, showgrid: false } };
+            
+            velocityContourLayout = {
+                title: '2D Velocity Contour',
+                xaxis: { title: 'z (m)' },
+                yaxis: { title: 'y (m)', scaleanchor: "x", scaleratio: 1 },
+                margin: { l: 60, r: 60, t: 60, b: 50 }
+            };
+            fractionContourLayout = {
+                title: '2D Liquid Fraction Contour',
+                xaxis: { title: 'z (m)' },
+                yaxis: { title: 'y (m)', scaleanchor: "x", scaleratio: 1 },
+                margin: { l: 60, r: 60, t: 60, b: 50 }
+            };
+            tempContourLayout = {
+                title: '2D Temperature Contour',
+                xaxis: { title: 'z (m)' },
+                yaxis: { title: 'y (m)', scaleanchor: "x", scaleratio: 1 },
+                margin: { l: 60, r: 60, t: 60, b: 50 }
+            };
+            
+            // Initialize all plots.
+            Plotly.newPlot('tempFractionPlot', [], tempFractionPlotLayout);
+            Plotly.newPlot('velocityPlot', [], velocityPlotLayout);
+            Plotly.newPlot('fAvePlot', [], fAvePlotLayout);
+            Plotly.newPlot('p1Plot', [], p1PlotLayout);
+            Plotly.newPlot('p2Plot', [], p2PlotLayout);
+            Plotly.newPlot('velocityContourPlot', [], velocityContourLayout);
+            Plotly.newPlot('fractionContourPlot', [], fractionContourLayout);
+            Plotly.newPlot('tempContourPlot', [], tempContourLayout);
+
+            // Add event listeners for group zoom
+            document.getElementById('velocityContourPlot').on('plotly_relayout', (eventData) => syncLayouts('velocityContourPlot', eventData));
+            document.getElementById('fractionContourPlot').on('plotly_relayout', (eventData) => syncLayouts('fractionContourPlot', eventData));
+            document.getElementById('tempContourPlot').on('plotly_relayout', (eventData) => syncLayouts('tempContourPlot', eventData));
+        }
+
+        function addNewTraces(params) {
+            const runName = `Run ${studyRunCounter}`;
+            const color = plotColors[(studyRunCounter - 1) % plotColors.length];
+            
+            plotData.tempFraction.push({ x: params.z, y: [], name: `${runName} Temp`, type: 'scatter', mode: 'lines', line: { color: color } });
+            plotData.tempFraction.push({ x: params.z, y: [], name: `${runName} Lq.Frac`, type: 'scatter', mode: 'lines', yaxis: 'y2', line: { color: color, dash: 'dot' } });
+            plotData.velocity.push({ x: params.z, y: [], name: `${runName} Vel`, type: 'scatter', mode: 'lines', line: { color: color } });
+            plotData.fAve.push({ x: [], y: [], mode: 'lines', name: `${runName} f_ave`, line: { color: color } });
+            plotData.p1.push({ x: [], y: [], mode: 'lines', name: `${runName} p1`, line: { color: color } });
+            
+            // Add two traces for the p2 plot
+            plotData.p2.push({ x: [], y: [], mode: 'lines', name: `${runName} p2`, line: { color: color } });
+            plotData.p2.push({ x: [], y: [], mode: 'lines', name: `${runName} Conv.`, yaxis: 'y2', line: { color: color, dash: 'dash' } });
+        
+            const H = params.height;
+            const y_contour = [-H/2, H/2];
+            const z_contour = params.z;
+            const initial_contour_data = Array(y_contour.length).fill(null).map(() => Array(z_contour.length).fill(0));
+
+            // For 2D plots, we don't accumulate traces. We just replace the single trace.
+            plotData.velocityContour = [{
+                z: initial_contour_data,
+                x: z_contour,
+                y: y_contour,
+                type: 'contour',
+                colorscale: 'Viridis',
+                colorbar: { title: 'Velocity (m/s)' }
+            }];
+
+            plotData.fractionContour = [{
+                z: initial_contour_data,
+                x: z_contour,
+                y: y_contour,
+                type: 'contour',
+                colorscale: [[0, 'blue'], [1, 'red']],
+                zmin: 0,
+                zmax: 1,
+                colorbar: { title: 'Liquid Fraction' }
+            }];
+
+            plotData.tempContour = [{
+                z: initial_contour_data,
+                x: z_contour,
+                y: y_contour,
+                type: 'contour',
+                colorscale: 'Jet',
+                colorbar: {
+                    title: 'Temperature (K)'
+                }
+            }];
         }
         
         function updateLivePlots(z, T, v, time) {
-            const f = calculate_f(T, simState.params.T_solidus, simState.params.T_liquidus);
-            Plotly.react('tempFractionPlot', [ { x: z, y: T, name: 'Temperature', type: 'scatter', mode: 'lines' }, { x: z, y: f, name: 'Lq. Fraction', type: 'scatter', mode: 'lines', yaxis: 'y2' } ], { ...tempFractionPlotLayout, title: `Profiles at t = ${time.toFixed(1)}s` });
-            Plotly.react('velocityPlot', [{ x: z, y: v, name: 'Velocity', type: 'scatter', mode: 'lines', line: {color: '#f97316'} }], { ...velocityPlotLayout, title: `Velocity Profile at t = ${time.toFixed(1)}s` });
+            try {
+                const T_solidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_solidus, time, T[i]));
+                const T_liquidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_liquidus, time, T[i]));
+                const f = calculate_f(T, T_solidus_arr, T_liquidus_arr);
+
+                const tempTraceIndex = (studyRunCounter - 1) * 2;
+                const fracTraceIndex = tempTraceIndex + 1;
+                const velTraceIndex = studyRunCounter - 1;
+
+                plotData.tempFraction[tempTraceIndex].y = T;
+                plotData.tempFraction[fracTraceIndex].y = f;
+                plotData.velocity[velTraceIndex].y = v;
+
+                Plotly.react('tempFractionPlot', plotData.tempFraction, { ...tempFractionPlotLayout, title: `Profiles at t = ${time.toFixed(1)}s` });
+                Plotly.react('velocityPlot', plotData.velocity, { ...velocityPlotLayout, title: `Velocity Profile at t = ${time.toFixed(1)}s` });
+            } catch(e) { /* Errors handled in getPropValue */ }
         }
         
-        function updateHistoryPlots(time, f_ave, p1, p2) {
-            Plotly.react('fAvePlot', [{x: time, y: f_ave, mode: 'lines', name: 'f_ave'}], fAvePlotLayout);
-            Plotly.react('p1Plot', [{x: time, y: p1, mode: 'lines', name: 'p1'}], p1PlotLayout);
-            Plotly.react('p2Plot', [{x: time, y: p2, mode: 'lines', name: 'p2'}], p2PlotLayout);
+        function updateHistoryPlots(time, p1, p2) {
+            const T_solidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_solidus, time, simState.T[i]));
+            const T_liquidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_liquidus, time, simState.T[i]));
+            const f_new = calculate_f(simState.T, T_solidus_arr, T_liquidus_arr);
+            const f_ave = f_new.reduce((a,b) => a + b, 0) / f_new.length;
+
+            const historyTraceIndex = studyRunCounter - 1;
+            const p2TraceIndex = historyTraceIndex * 2;
+            const convectionTraceIndex = p2TraceIndex + 1;
+
+            Plotly.extendTraces('fAvePlot', { x: [[time]], y: [[f_ave]] }, [historyTraceIndex]);
+            Plotly.extendTraces('p1Plot', { x: [[time]], y: [[p1]] }, [historyTraceIndex]);
+
+            // Calculate and plot p2 and the convection term
+            const rho = getPropValue(simState.params.rho_ref, time, null);
+            const Cp = getPropValue(simState.params.Cp, time, null);
+            const max_v = simState.v.length > 0 ? Math.max(...simState.v.map(v => Math.abs(v))) : 0;
+            const convectionTerm = rho * Cp * max_v * p2;
+
+            Plotly.extendTraces('p2Plot', { y: [[p2]] , x: [[time]] }, [p2TraceIndex]);
+            Plotly.extendTraces('p2Plot', { y: [[convectionTerm]], x: [[time]] }, [convectionTraceIndex]);
         }
+
+        function update2DPlots(time) {
+            const T_solidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_solidus, time, simState.T[i]));
+            const T_liquidus_arr = Array.from({length: simState.params.Nz}, (_, i) => getPropValue(simState.params.T_liquidus, time, simState.T[i]));
+            const f = calculate_f(simState.T, T_solidus_arr, T_liquidus_arr);
+
+            const T_contour_data = [simState.T, simState.T];
+            const f_contour_data = [f, f];
+            const v_contour_data = [simState.v, simState.v];
+
+            plotData.tempContour[0].z = T_contour_data;
+            plotData.fractionContour[0].z = f_contour_data;
+            plotData.velocityContour[0].z = v_contour_data;
+
+            Plotly.react('tempContourPlot', plotData.tempContour, { ...tempContourLayout, title: `Temp. Contour at t = ${time.toFixed(1)}s` });
+            Plotly.react('fractionContourPlot', plotData.fractionContour, { ...fractionContourLayout, title: `Fraction Contour at t = ${time.toFixed(1)}s` });
+            Plotly.react('velocityContourPlot', plotData.velocityContour, { ...velocityContourLayout, title: `Velocity Contour at t = ${time.toFixed(1)}s` });
+        }
+
+        // --- Progress Widget Dragging Logic ---
+        function makeDraggable(elmnt) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = document.getElementById(elmnt.id + "Header");
+            
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            } else {
+                elmnt.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // --- Picture-in-Picture (PiP) Logic ---
+        function drawPipCanvas(currentTime, totalTime, percentage) {
+            const width = pipCanvas.width;
+            const height = pipCanvas.height;
+            const headerHeight = 32;
+
+            // Main Background
+            pipCtx.fillStyle = 'white';
+            pipCtx.fillRect(0, 0, width, height);
+
+            // Header Background
+            pipCtx.fillStyle = '#e5e7eb';
+            pipCtx.fillRect(0, 0, width, headerHeight);
+
+            // Header Text
+            pipCtx.fillStyle = '#1f2937';
+            pipCtx.font = '600 14px Inter, sans-serif';
+            pipCtx.fillText('Simulation Progress', 12, 21);
+
+            // Content Text
+            pipCtx.font = '14px monospace';
+            pipCtx.fillText(`Time: ${currentTime.toFixed(1)}s / ${totalTime.toFixed(1)}s`, 12, headerHeight + 24);
+            pipCtx.fillText(`Progress: (${percentage.toFixed(1)}%)`, 12, headerHeight + 44);
+
+            // Progress Bar Background
+            const pBarY = headerHeight + 60;
+            pipCtx.fillStyle = '#e5e7eb';
+            pipCtx.fillRect(12, pBarY, width - 24, 10);
+
+            // Progress Bar Foreground
+            pipCtx.fillStyle = '#4f46e5';
+            pipCtx.fillRect(12, pBarY, (width - 24) * (percentage / 100), 10);
+        }
+
+        async function togglePictureInPicture() {
+            // Disable the button immediately to prevent double-clicks.
+            pipBtn.disabled = true;
+
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                    // If exit is successful, re-enable the button.
+                    pipBtn.disabled = false;
+                } else {
+                    const video = document.createElement('video');
+                    video.srcObject = pipCanvas.captureStream();
+                    video.muted = true;
+
+                    // Wait for metadata to load before requesting PiP
+                    video.addEventListener('loadedmetadata', () => {
+                        video.requestPictureInPicture()
+                            .then(() => {
+                                // PiP entered successfully. The 'leave' event will re-enable the button.
+                                video.addEventListener('leavepictureinpicture', () => {
+                                    pipBtn.disabled = false;
+                                }, { once: true });
+                            })
+                            .catch(error => {
+                                // Failed to enter PiP.
+                                console.error("PiP Request Error:", error);
+                                log("Failed to enter Picture-in-Picture mode.");
+                                pipBtn.disabled = false; // Re-enable button on failure.
+                            });
+                    });
+
+                    // This event handles cases where the video fails to load entirely.
+                    video.addEventListener('error', () => {
+                        console.error("Video stream error.");
+                        log("Could not load the video stream for PiP.");
+                        pipBtn.disabled = false;
+                    });
+                    
+                    video.play();
+                }
+            } catch (error) {
+                console.error("General PiP Error:", error);
+                log("An error occurred with Picture-in-Picture.");
+                // Re-enable the button if any top-level error occurs.
+                pipBtn.disabled = false;
+            }
+        }
+
 
         // --- Event Listeners ---
         startBtn.addEventListener('click', startSimulation);
@@ -482,29 +1548,41 @@
         importFile.addEventListener('change', handleFileImport);
         exportParamsBtn.addEventListener('click', exportParameters);
         loadDefaultsBtn.addEventListener('click', loadDefaultParameters);
+        downloadSimLogBtn.addEventListener('click', downloadSimLog);
         downloadResultsBtn.addEventListener('click', downloadResults);
+        enableSimLogCheck.addEventListener('change', (e) => { simState.logSimEnabled = e.target.checked; if (!simState.running && simState.n === 0) { logDiv.textContent = simState.logSimEnabled ? '' : 'Simulation Log disabled.'; } });
+        enableResultsLogCheck.addEventListener('change', (e) => { simState.logResultsEnabled = e.target.checked; if (!e.target.checked) { downloadResultsBtn.disabled = true; } if (!simState.running && simState.n === 0) { resultsLogDiv.textContent = simState.logResultsEnabled ? '' : 'Detailed Results Log disabled.'; } });
         
-        enableSimLogCheck.addEventListener('change', (e) => {
-            simState.logSimEnabled = e.target.checked;
-            if (!simState.running && simState.n === 0) {
-                 logDiv.textContent = simState.logSimEnabled ? '' : 'Simulation Log disabled.';
-            }
+        // Modal listeners
+        helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+        closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+        helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.add('hidden'); });
+
+        // Progress Widget Listener
+        showProgressWidgetCheck.addEventListener('change', (e) => {
+            progressWidget.classList.toggle('hidden', !e.target.checked);
         });
-        enableResultsLogCheck.addEventListener('change', (e) => {
-            simState.logResultsEnabled = e.target.checked;
-            if (!e.target.checked) { downloadResultsBtn.disabled = true; }
-            if (!simState.running && simState.n === 0) {
-                 resultsLogDiv.textContent = simState.logResultsEnabled ? '' : 'Detailed Results Log disabled.';
-            }
-        });
+
+        // Picture-in-Picture Listener
+        pipBtn.addEventListener('click', togglePictureInPicture);
 
 
         window.addEventListener('load', () => {
-             const p = getParams();
-             setupPlots(p.z);
+             // Check for Picture-in-Picture API support
+             if (!('requestPictureInPicture' in HTMLVideoElement.prototype)) {
+                pipBtn.disabled = true;
+                pipBtn.title = "Picture-in-Picture is not supported by your browser.";
+                pipBtn.classList.add('btn-gray');
+                pipBtn.classList.remove('btn-primary');
+             }
+             setupParamUI();
+             setupPlots();
              updateUI();
+             updateCFLStatus(); // Initial check on load
+             makeDraggable(document.getElementById('progressWidget')); // Make the widget draggable
         });
 
     </script>
 </body>
 </html>
+
