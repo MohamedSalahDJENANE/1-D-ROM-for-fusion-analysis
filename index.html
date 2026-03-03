@@ -91,6 +91,10 @@
         Show Menu
     </button>
 
+    <!-- Hidden elements for PiP Background Keep-Alive Hack -->
+    <canvas id="pipCanvas" width="1000" height="800" class="hidden"></canvas>
+    <video id="pipVideo" autoplay muted playsinline class="hidden"></video>
+
     <div class="min-h-screen flex flex-col md:flex-row">
         <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-slate-50 border-r border-slate-200 h-screen sticky top-0 overflow-y-auto p-4 flex-shrink-0 custom-scrollbar z-40 transition-all duration-300">
             <div class="mb-6">
@@ -110,6 +114,10 @@
                 <label class="flex items-center gap-2 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 cursor-pointer hover:border-blue-400">
                     <input type="checkbox" id="showProgressWidgetCheck" class="text-blue-600 rounded">
                     <span class="font-medium">Show Progress Widget</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 cursor-pointer hover:border-blue-400" title="Forces the simulation to run at full speed even when the tab is hidden by using a Picture-in-Picture window.">
+                    <input type="checkbox" id="keepAlivePipCheck" class="text-blue-600 rounded">
+                    <span class="font-medium text-purple-600">Keep Alive (PiP Background)</span>
                 </label>
                 <button id="zenModeBtn" class="btn btn-secondary text-xs w-full">Toggle Zen Mode</button>
             </div>
@@ -175,8 +183,16 @@
                         <input type="checkbox" id="groupZoomCheck" class="text-blue-600 rounded" checked><span>Sync Zoom</span>
                     </label>
                     <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                        <input type="checkbox" id="smoothHeatmapCheck" class="text-blue-600 rounded"><span>Smooth Contours</span>
+                        <input type="checkbox" id="smoothHeatmapCheck" class="text-blue-600 rounded" checked><span>Smooth Contours</span>
                     </label>
+                    <div class="flex items-center gap-2 border-l border-slate-300 pl-4">
+                        <label class="flex items-center gap-1 cursor-pointer text-purple-600 font-medium" title="Automatically export Tecplot file at given frequency">
+                            <input type="checkbox" id="autoSaveTecplotCheck" class="text-purple-600 rounded"> <span class="text-xs">Auto-Save</span>
+                        </label>
+                        <input type="number" id="tecplotAutoSaveFreq" value="30" step="1" class="text-xs border rounded p-1 w-16 text-center font-mono" title="Frequency in seconds">
+                        <span class="text-xs text-slate-500 font-medium">s</span>
+                        <button id="btnExportFullField" class="btn btn-secondary text-xs bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 ml-2">Export Tecplot (.dat)</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="glass-panel p-1"><div id="velocityContourPlot" class="w-full h-[350px]"></div></div>
@@ -201,8 +217,8 @@
                                 </div>
                             </div>
                             <div class="flex gap-4 mb-4">
-                                <label class="flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="radio" name="adv1DMode" value="discrete" checked class="text-blue-600"> Discrete Points</label>
-                                <label class="flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="radio" name="adv1DMode" value="smoothed" class="text-blue-600"> Interpolated Line</label>
+                                <label class="flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="radio" name="adv1DMode" value="discrete" class="text-blue-600"> Discrete Points</label>
+                                <label class="flex items-center gap-2 text-xs font-medium cursor-pointer"><input type="radio" name="adv1DMode" value="smoothed" checked class="text-blue-600"> Interpolated Line</label>
                             </div>
                             <div class="flex gap-2">
                                 <button id="btnPlot1DTransverse" class="btn btn-primary text-xs flex-1">Plot Profile</button>
@@ -212,15 +228,12 @@
                         <div id="advPlot1D" class="bg-white rounded border flex-grow min-h-[300px] w-full overflow-hidden"></div>
                     </div>
 
-                    <!-- Column 2: 3D Surface & Field Export -->
+                    <!-- Column 2: 3D Surface Generation -->
                     <div class="flex flex-col gap-4">
                         <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <h4 class="font-bold text-sm text-slate-700 mb-3">Field Data Export</h4>
-                            <div class="flex gap-2 mb-2">
-                                <button id="btnPlot3D" class="btn btn-primary text-xs flex-1">Generate 3D Surface</button>
-                            </div>
+                            <h4 class="font-bold text-sm text-slate-700 mb-3">3D Surface Generation</h4>
                             <div class="flex gap-2">
-                                <button id="btnExportFullField" class="btn btn-secondary text-xs flex-1 bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700">Export Tecplot (.dat)</button>
+                                <button id="btnPlot3D" class="btn btn-primary text-xs flex-1">Generate 3D Surface</button>
                             </div>
                         </div>
                         <div id="advPlot3D" class="bg-white rounded border flex-grow min-h-[300px] w-full overflow-hidden"></div>
@@ -250,7 +263,7 @@
                         <div class="flex items-center gap-3">
                             <input type="text" id="resultsLogChannelsInput" value="All" class="text-xs border rounded p-1 w-16 text-center font-mono" title="Type 'All' or numbers like '1,3,5'">
                             <label class="flex items-center gap-1 cursor-pointer" title="Enable detailed logging in memory"><input type="checkbox" id="enableResultsLog" class="text-blue-600 rounded" checked> <span class="text-xs">On</span></label>
-                            <label class="flex items-center gap-1 cursor-pointer text-purple-600 font-medium" title="Automatically download text file at each frequency interval and clear memory"><input type="checkbox" id="autoSaveResultsLog" class="text-purple-600 rounded"> <span class="text-xs">Auto-Save</span></label>
+                            <label class="flex items-center gap-1 cursor-pointer text-purple-600 font-medium" title="Automatically download text file at each frequency interval and clear memory"><input type="checkbox" id="autoSaveResultsLog" class="text-purple-600 rounded" checked> <span class="text-xs">Auto-Save</span></label>
                             <button id="downloadResultsBtn" class="text-blue-600 hover:underline text-xs">Download</button>
                         </div>
                     </div>
@@ -403,7 +416,7 @@
             container.appendChild(createDetails('Solver & Logging', solverHTML));
         }
 
-        let simState = { running: false, paused: false, finished: false, animationFrameId: null, params: {}, n: 0, v_channels: [], T_channels: [], T_walls: [], p1_channels: [], p2_channels: [], functionCache: {}, lastLogTime: 0, lastResultTime: 0, diagnostics: [], traceIndices: {} };
+        let simState = { running: false, paused: false, finished: false, animationFrameId: null, params: {}, n: 0, v_channels: [], T_channels: [], T_walls: [], p1_channels: [], p2_channels: [], functionCache: {}, lastLogTime: 0, lastResultTime: 0, lastTecplotSaveTime: 0, diagnostics: [], traceIndices: {} };
         let studyRunCounter = 0;
         let plotData = { tempFraction: [], velocity: [], fAve: [], p1: [], p2: [], minMaxT: [], tempContour: [], velocityContour: [], fractionContour: [] };
         const plotColors = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#db2777']; 
@@ -466,7 +479,7 @@
             Plotly.newPlot('fractionContourPlot', [], fractionContourLayout, { responsive: true });
             Plotly.newPlot('tempContourPlot', [], tempContourLayout, { responsive: true });
             Plotly.newPlot('advPlot1D', [], getBaseLayout('Transverse Profile', 'x [m]', 'Temperature [K]'), { responsive: true });
-            Plotly.newPlot('advPlot3D', [], {title: '3D Surface', margin: {l:0, r:0, b:0, t:30}, scene: {xaxis:{title:'z'}, yaxis:{title:'x'}, zaxis:{title:'T'}}}, { responsive: true });
+            Plotly.newPlot('advPlot3D', [], {title: '3D Surface', margin: {l:0, r:0, b:0, t:30}, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', scene: {xaxis:{title:'z'}, yaxis:{title:'x'}, zaxis:{title:'T'}}}, { responsive: true });
             
             document.getElementById('velocityContourPlot').on('plotly_relayout', (ed) => syncLayouts('velocityContourPlot', ed));
             document.getElementById('fractionContourPlot').on('plotly_relayout', (ed) => syncLayouts('fractionContourPlot', ed));
@@ -691,6 +704,7 @@
                     // Fix: Reset log timers to ensure consistent start times for every run
                     simState.lastLogTime = 0;
                     simState.lastResultTime = 0;
+                    simState.lastTecplotSaveTime = 0;
 
                     // NEW: Autoscale all 1D plots at start to reset zoom/ranges
                     const resetAxes = { 'xaxis.autorange': true, 'yaxis.autorange': true };
@@ -702,6 +716,12 @@
                     Plotly.relayout('minMaxTPlot', resetAxes);
 
                     simState.running = true;
+
+                    // --- INITIAL AUTO-SAVE AT t=0 ---
+                    if (document.getElementById('autoSaveTecplotCheck').checked) {
+                        exportTecplot(0); // Instantly dump the initial boundary conditions
+                    }
+
                 } catch (e) { console.error(e); alert("Init Error: " + e.message); }
             }
             simState.animationFrameId = requestAnimationFrame(simulationStep);
@@ -1115,6 +1135,15 @@
                     }
                 }
 
+                // --- TECPLOT AUTO-SAVE ---
+                const autoSaveTecplot = document.getElementById('autoSaveTecplotCheck').checked;
+                const tecplotFreq = parseFloat(document.getElementById('tecplotAutoSaveFreq').value) || 30.0;
+                
+                if (autoSaveTecplot && (time - simState.lastTecplotSaveTime >= tecplotFreq)) {
+                    simState.lastTecplotSaveTime = time;
+                    exportTecplot(time); // Pass explicit time for strict synchronization
+                }
+
             } catch(e) { console.error(e); simState.running = false; }
             simState.n++;
             updateUI();
@@ -1481,6 +1510,65 @@
              Plotly.newPlot('advPlot1D', [trace], getBaseLayout('Transverse T Profile', 'x [m]', 'T [K]'), { responsive: true });
         }
 
+        // --- NEW: Export CSV Logic ---
+        function export1DTransverseCSV() {
+             const z_idx = parseInt(document.getElementById('adv_z_index').value);
+             if(simState.T_walls.length === 0 || !simState.params.z || simState.params.z[z_idx] === undefined) { 
+                 alert("Please run the simulation first."); 
+                 return; 
+             }
+             
+             const M = simState.params.M;
+             const h = simState.params.h;
+             const d = simState.params.delta_wall;
+             const mode = document.querySelector('input[name="adv1DMode"]:checked').value;
+             
+             let x = [], T = [];
+             let currY = 0;
+             
+             // Regenerate coordinates using same logic as plot Transverse
+             if (mode === 'smoothed') {
+                 x.push(currY + d/2); T.push(simState.T_walls[0][z_idx]); currY += d;
+                 for(let j=0; j<M; j++) {
+                     x.push(currY + h/2); T.push(simState.T_channels[j][z_idx]); currY += h;
+                     x.push(currY + d/2); T.push(simState.T_walls[j+1][z_idx]); currY += d;
+                 }
+             } else {
+                 x.push(currY); T.push(simState.T_walls[0][z_idx]);
+                 x.push(currY + d/2); T.push(simState.T_walls[0][z_idx]); currY += d;
+                 x.push(currY); T.push(simState.T_walls[0][z_idx]);
+                 for(let j=0; j<M; j++) {
+                     const T_chan = simState.T_channels[j][z_idx];
+                     x.push(currY); T.push(T_chan);
+                     x.push(currY + h/2); T.push(T_chan); currY += h;
+                     x.push(currY); T.push(T_chan);
+                     const T_w = simState.T_walls[j+1][z_idx];
+                     x.push(currY); T.push(T_w);
+                     x.push(currY + d/2); T.push(T_w); currY += d;
+                     x.push(currY); T.push(T_w);
+                 }
+             }
+
+             // Build CSV string
+             let csvContent = `Transverse Position x [m],Temperature [K]\n`;
+             for (let i = 0; i < x.length; i++) {
+                 csvContent += `${x[i].toExponential(6)},${T[i].toExponential(6)}\n`;
+             }
+
+             // Download
+             const timeStr = (simState.n * simState.params.dt).toFixed(2);
+             const zStr = simState.params.z[z_idx].toFixed(4);
+             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = `Transverse_T_z${zStr}_t${timeStr}_${mode}.csv`;
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(url);
+        }
+
         function plot3DSurface() {
              if(simState.T_walls.length === 0) { alert("Run simulation first."); return; }
              const Nz = simState.params.Nz;
@@ -1520,11 +1608,27 @@
                  }
              }];
              
-             Plotly.newPlot('advPlot3D', data, {title: '3D Temperature Surface', margin: {l:0, r:0, b:0, t:30}, scene: {xaxis:{title:'z'}, yaxis:{title:'x'}, zaxis:{title:'T'}}}, { responsive: true });
+             // Note: paper_bgcolor and plot_bgcolor added dynamically based on theme
+             const isDark = document.documentElement.classList.contains('dark');
+             const textColor = isDark ? '#f8fafc' : '#1e293b';
+             const labelColor = isDark ? '#94a3b8' : '#64748b';
+
+             Plotly.newPlot('advPlot3D', data, {
+                 title: { text: '3D Temperature Surface', font: { color: textColor } }, 
+                 margin: {l:0, r:0, b:0, t:30}, 
+                 paper_bgcolor: 'rgba(0,0,0,0)', 
+                 plot_bgcolor: 'rgba(0,0,0,0)', 
+                 scene: {
+                     xaxis:{title:'z', titlefont: {color: labelColor}, tickfont: {color: labelColor}}, 
+                     yaxis:{title:'x', titlefont: {color: labelColor}, tickfont: {color: labelColor}}, 
+                     zaxis:{title:'T', titlefont: {color: labelColor}, tickfont: {color: labelColor}}
+                 }
+             }, { responsive: true });
         }
         
-        // --- NEW: Export Multi-Zone Tecplot ASCII Block Format (.dat) ---
-        function exportTecplot() {
+        // --- UPDATED: Export Multi-Zone Tecplot ASCII Block Format (.dat) ---
+        // Includes STRANDID and SOLUTIONTIME for proper transient sequence reading in Tecplot.
+        function exportTecplot(forcedTime = null) {
             if (!simState.T_channels || simState.T_channels.length === 0) {
                 alert("Please run the simulation first.");
                 return;
@@ -1535,7 +1639,7 @@
             const Nz = params.Nz;
             const d = params.delta_wall;
             const h = params.h;
-            const time = simState.n * params.dt;
+            const time = forcedTime !== null ? forcedTime : simState.n * params.dt;
             const timeStr = time.toFixed(2);
             const smooth = document.getElementById('smoothHeatmapCheck').checked;
             
@@ -1553,6 +1657,35 @@
             content += `VARIABLES = "Z", "X", "Temperature", "Velocity", "Liquid_Fraction"\n`;
 
             const formatBlockRow = (arr) => arr.map(v => Number(v).toExponential(5)).join(" ") + "\n";
+
+            // Pre-compute node centers for mathematically perfect smooth interpolation
+            const T_centers_y = [d / 2];
+            let currY = d;
+            for(let jj = 0; jj < M; jj++) {
+                T_centers_y.push(currY + h / 2);
+                currY += h;
+                T_centers_y.push(currY + d / 2);
+                currY += d;
+            }
+            
+            const getSmoothT = (y, i) => {
+                const total_h = (M + 1) * d + M * h;
+                if (y <= d / 2) return simState.T_walls[0][i];
+                if (y >= total_h - d / 2) return simState.T_walls[M][i];
+                
+                let vals = [simState.T_walls[0][i]];
+                for(let jj = 0; jj < M; jj++) {
+                    vals.push(simState.T_channels[jj][i]);
+                    vals.push(simState.T_walls[jj + 1][i]);
+                }
+                for(let c = 0; c < T_centers_y.length - 1; c++) {
+                    if (y >= T_centers_y[c] && y <= T_centers_y[c+1]) {
+                        const factor = (y - T_centers_y[c]) / (T_centers_y[c+1] - T_centers_y[c]);
+                        return vals[c] + factor * (vals[c+1] - vals[c]);
+                    }
+                }
+                return vals[vals.length - 1];
+            };
 
             // 2. Loop through all physical layers (Walls and Channels)
             const totalLayers = 2 * M + 1;
@@ -1573,8 +1706,8 @@
                     y_top = y_bottom + h;
                 }
 
-                // If smooth is enabled, generate high-res sub-mesh for channels
-                const num_cells_y = (smooth && isChannel) ? 20 : 1;
+                // Interpolate walls as well if smooth to perfectly match the Plotly visual gradient
+                const num_cells_y = (smooth && isChannel) ? 20 : (smooth ? 5 : 1);
                 const J_nodes = num_cells_y + 1;
 
                 // Generate Y nodes for this zone
@@ -1589,13 +1722,13 @@
                     const y_c = y_bottom + (c + 0.5) * ((y_top - y_bottom) / num_cells_y);
                     
                     for(let i = 0; i < Nz; i++) {
-                        if(!isChannel) {
-                            zone_T.push(simState.T_walls[k][i]);
-                            zone_V.push(0);
-                            zone_F.push(0);
-                        } else {
-                            if (!smooth) {
-                                // Blocky default channel
+                        if (!smooth) {
+                            // Raw Finite Volume blocky export
+                            if (!isChannel) {
+                                zone_T.push(simState.T_walls[k][i]);
+                                zone_V.push(0);
+                                zone_F.push(0);
+                            } else {
                                 const T_val = simState.T_channels[j][i];
                                 zone_T.push(T_val);
                                 zone_V.push(simState.v_channels[j][i]);
@@ -1603,36 +1736,33 @@
                                 const T_sol = getPropValue(params.T_solidus, time, T_val, z_centers[i], x_fluid);
                                 const T_liq = getPropValue(params.T_liquidus, time, T_val, z_centers[i], x_fluid);
                                 zone_F.push((T_liq > T_sol) ? Math.min(1, Math.max(0, (T_val - T_sol) / (T_liq - T_sol))) : (T_val > T_sol ? 1 : 0));
-                            } else {
-                                // Smoothed / Interpolated Parabolic Channel
-                                const y_center_chan = y_bottom + h / 2;
-                                let val_T;
-                                if(y_c <= y_center_chan) {
-                                    const factor = (y_c - y_bottom) / (h / 2);
-                                    val_T = simState.T_walls[j][i] + factor * (simState.T_channels[j][i] - simState.T_walls[j][i]);
-                                } else {
-                                    const factor = (y_c - y_center_chan) / (h / 2);
-                                    val_T = simState.T_channels[j][i] + factor * (simState.T_walls[j+1][i] - simState.T_channels[j][i]);
-                                }
-                                
+                            }
+                        } else {
+                            // Mathematically precise linear interpolation matching 2D Heatmap
+                            const val_T = getSmoothT(y_c, i);
+                            let val_V = 0;
+                            let val_F = 0;
+                            
+                            if (isChannel) {
                                 const v_plug = simState.v_channels[j][i];
                                 const eta = (y_c - y_bottom) / h;
-                                const val_V = v_plug * Math.max(0, 4 * eta * (1 - eta));
+                                val_V = v_plug * Math.max(0, 4 * eta * (1 - eta));
                                 
                                 const val_T_sol = getPropValue(params.T_solidus, time, val_T, z_centers[i], y_c);
                                 const val_T_liq = getPropValue(params.T_liquidus, time, val_T, z_centers[i], y_c);
-                                const val_F = (val_T_liq > val_T_sol) ? Math.min(1, Math.max(0, (val_T - val_T_sol) / (val_T_liq - val_T_sol))) : (val_T > val_T_sol ? 1 : 0);
-                                
-                                zone_T.push(val_T);
-                                zone_V.push(val_V);
-                                zone_F.push(val_F);
+                                val_F = (val_T_liq > val_T_sol) ? Math.min(1, Math.max(0, (val_T - val_T_sol) / (val_T_liq - val_T_sol))) : (val_T > val_T_sol ? 1 : 0);
                             }
+                            
+                            zone_T.push(val_T);
+                            zone_V.push(val_V);
+                            zone_F.push(val_F);
                         }
                     }
                 }
 
-                // Write Zone Header
-                content += `ZONE T="${zoneName}", I=${Nz + 1}, J=${J_nodes}, DATAPACKING=BLOCK, VARLOCATION=([3,4,5]=CELLCENTERED)\n`;
+                // Write Zone Header with STRANDID and SOLUTIONTIME
+                // idx+1 as STRANDID ensures Wall_0 in file 1 is linked to Wall_0 in file 2.
+                content += `ZONE T="${zoneName}", I=${Nz + 1}, J=${J_nodes}, STRANDID=${idx + 1}, SOLUTIONTIME=${time}, DATAPACKING=BLOCK, VARLOCATION=([3,4,5]=CELLCENTERED)\n`;
 
                 // Write Z Coordinates (Nodes)
                 for(let s = 0; s < J_nodes; s++) content += formatBlockRow(z_edges);
@@ -1654,11 +1784,12 @@
                 appendCellData(zone_F);
             }
 
+            const caseNum = String(studyRunCounter).padStart(2, '0');
             const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `enthalpor_2d_t${timeStr}_multizone_${smooth ? 'smoothed' : 'blocky'}.dat`;
+            a.download = `enthalpor_2d_CASE_${caseNum}_t${timeStr}_multizone_${smooth ? 'smoothed' : 'blocky'}.dat`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1757,9 +1888,99 @@
             URL.revokeObjectURL(url);
         }
 
+        // --- NEW: PiP Keep-Alive Hack Logic ---
+        let pipCanvas, pipCtx, pipVideo, pipAnimId;
+        
+        function initPipHack() {
+            pipCanvas = document.getElementById('pipCanvas');
+            pipCtx = pipCanvas.getContext('2d');
+            pipVideo = document.getElementById('pipVideo');
+            
+            // Draw initial frame so browser knows it has video data
+            pipCtx.fillStyle = '#0f172a';
+            pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
+            
+            try {
+                pipVideo.srcObject = pipCanvas.captureStream(30); // 30 FPS stream
+            } catch (e) {
+                console.warn("captureStream not supported in this environment");
+            }
+
+            pipVideo.addEventListener('leavepictureinpicture', () => {
+                document.getElementById('keepAlivePipCheck').checked = false;
+                cancelAnimationFrame(pipAnimId);
+            });
+        }
+
+        async function togglePip(enable) {
+            if (enable) {
+                try {
+                    await pipVideo.play();
+                    await pipVideo.requestPictureInPicture();
+                    updatePipFrame();
+                } catch (err) {
+                    console.error("PiP start failed:", err);
+                    document.getElementById('keepAlivePipCheck').checked = false;
+                    alert("Keep Alive (PiP) failed. Your browser might block this feature or require a direct click event.");
+                }
+            } else {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                }
+                cancelAnimationFrame(pipAnimId);
+            }
+        }
+
+        function updatePipFrame() {
+            if (!document.pictureInPictureElement) return;
+
+            // Draw status box (High Resolution rendering)
+            pipCtx.fillStyle = '#0f172a';
+            pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
+            
+            pipCtx.fillStyle = '#3b82f6';
+            pipCtx.font = 'bold 96px sans-serif';
+            pipCtx.textAlign = 'center';
+            pipCtx.fillText('ENTHALPOR', pipCanvas.width/2, 240);
+            
+            pipCtx.font = '64px monospace';
+            pipCtx.fillStyle = '#94a3b8';
+            pipCtx.fillText(simState.running ? (simState.paused ? 'PAUSED' : 'RUNNING FAST') : 'IDLE / STOPPED', pipCanvas.width/2, 400);
+
+            if (simState.running && !simState.paused) {
+                const pct = Math.min(100, (simState.n * simState.params.dt / simState.params.total_time)*100);
+                pipCtx.fillStyle = '#cbd5e1';
+                pipCtx.fillText(`Prog: ${pct.toFixed(1)}%`, pipCanvas.width/2, 520);
+                pipCtx.fillText(`Time: ${(simState.n*simState.params.dt).toFixed(1)}s`, pipCanvas.width/2, 620);
+
+                // Classic Progress Bar Background (IDM Style - Scaled Up)
+                const barWidth = 800;
+                const barHeight = 56;
+                const barX = (pipCanvas.width - barWidth) / 2;
+                const barY = 700;
+                
+                // Border
+                pipCtx.strokeStyle = '#475569';
+                pipCtx.lineWidth = 4;
+                pipCtx.strokeRect(barX - 4, barY - 4, barWidth + 8, barHeight + 8);
+
+                // Background
+                pipCtx.fillStyle = '#1e293b';
+                pipCtx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Progress Bar Fill (Green)
+                pipCtx.fillStyle = '#10b981'; 
+                const fillWidth = barWidth * (pct / 100);
+                pipCtx.fillRect(barX, barY, fillWidth, barHeight);
+            }
+
+            pipAnimId = requestAnimationFrame(updatePipFrame);
+        }
+
         window.addEventListener('load', () => {
             generateHTML();
             setupPlots();
+            initPipHack();
             
             // Event Listeners
             document.getElementById('paramsContainer').addEventListener('input', updateCFLIndicator);
@@ -1803,6 +2024,7 @@
             document.getElementById('pauseBtn').addEventListener('click', pauseSimulation);
             document.getElementById('resetBtn').addEventListener('click', resetSimulation);
             document.getElementById('showProgressWidgetCheck').addEventListener('change', (e) => { document.getElementById('progressWidget').classList.toggle('hidden', !e.target.checked); });
+            document.getElementById('keepAlivePipCheck').addEventListener('change', (e) => togglePip(e.target.checked));
             document.getElementById('smoothHeatmapCheck').addEventListener('change', () => {
                 if (simState.T_channels && simState.T_channels.length > 0) {
                     const time = simState.n * (simState.params.dt || 0.01);
@@ -1862,6 +2084,8 @@
                 if(document.getElementById('advPlot3D').data) {
                     Plotly.relayout('advPlot3D', {
                         'title.font.color': textColor,
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
                         'scene.xaxis.title.font.color': labelColor,
                         'scene.yaxis.title.font.color': labelColor,
                         'scene.zaxis.title.font.color': labelColor,
@@ -1887,6 +2111,10 @@
             document.getElementById('exportParamsBtn').addEventListener('click', exportParams);
             document.getElementById('loadDefaultsBtn').addEventListener('click', () => { if(confirm('Reset all parameters?')) { location.reload(); }});
             document.getElementById('helpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
+            
+            // Connect the newly built Export CSV Button
+            document.getElementById('btnExport1DTransverse').addEventListener('click', export1DTransverseCSV);
+
             document.getElementById('closeHelpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
             
             document.getElementById('downloadSimLogBtn').addEventListener('click', () => downloadLogFile('simulation_log.txt', 'logHeader', 'log'));
@@ -1897,7 +2125,7 @@
             document.getElementById('btnPlot3D').addEventListener('click', plot3DSurface);
             
             // --- Hook up the new Tecplot Export ---
-            document.getElementById('btnExportFullField').addEventListener('click', exportTecplot);
+            document.getElementById('btnExportFullField').addEventListener('click', () => exportTecplot());
             
             const toggleZenMode = () => {
                 const sb = document.getElementById('sidebar');
