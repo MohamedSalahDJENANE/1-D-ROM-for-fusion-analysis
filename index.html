@@ -461,7 +461,8 @@
                     yaxis: { title: 'x [m]', tickfont: {color: labelColor}, titlefont: {color: labelColor} },
                     margin: { l: 50, r: 10, t: 40, b: 40 },
                     paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: labelColor }
+                    font: { color: labelColor },
+                    uirevision: 'true' // NEW: Prevents zoom reset during rapid Plotly.react updates
                 };
             };
 
@@ -673,9 +674,20 @@
                     }
                     simState.params.plotShapes = shapes; 
                     const totalHeight = (M+1)*delta_wall + M*h;
-                    Plotly.relayout('velocityContourPlot', { 'yaxis.range': [0, totalHeight], 'shapes': shapes });
-                    Plotly.relayout('fractionContourPlot', { 'yaxis.range': [0, totalHeight], 'shapes': shapes });
-                    Plotly.relayout('tempContourPlot', { 'yaxis.range': [0, totalHeight], 'shapes': shapes });
+                    
+                    // NEW: Inject bounds and shapes directly into layout to bypass async relayout race conditions
+                    velocityContourLayout.yaxis.range = [0, totalHeight];
+                    fractionContourLayout.yaxis.range = [0, totalHeight];
+                    tempContourLayout.yaxis.range = [0, totalHeight];
+                    
+                    velocityContourLayout.shapes = shapes;
+                    fractionContourLayout.shapes = shapes;
+                    tempContourLayout.shapes = shapes;
+                    
+                    // Force zoom reset on new simulation run
+                    velocityContourLayout.uirevision = studyRunCounter;
+                    fractionContourLayout.uirevision = studyRunCounter;
+                    tempContourLayout.uirevision = studyRunCounter;
                     
                     addNewTraces(simState.params);
                     
@@ -1420,9 +1432,17 @@
                     combined_f.push(new Array(Nz).fill(0));
                 }
 
+                // NEW: Compute strict xEdges. Plotly crashes if y is edges but x is centers. Both must be edges.
+                const xEdges = new Array(Nz + 1);
+                xEdges[0] = Math.max(0, simState.params.z[0] - simState.params.dz / 2);
+                for (let i = 1; i < Nz; i++) {
+                    xEdges[i] = (simState.params.z[i - 1] + simState.params.z[i]) / 2;
+                }
+                xEdges[Nz] = simState.params.z[Nz - 1] + simState.params.dz / 2;
+
                 const commonUpdate = {
                     y: yEdges,
-                    x: simState.params.z,
+                    x: xEdges, // Replaced simState.params.z with true spatial bounds
                     type: 'heatmap',
                     zsmooth: false,
                     connectgaps: true 
@@ -1433,9 +1453,9 @@
                 plotData.velocityContour[0] = { ...commonUpdate, z: combined_v, colorscale: 'Viridis' };
             }
 
-            Plotly.react('tempContourPlot', plotData.tempContour, { ...tempContourLayout, shapes: shapes, title: `Temp (t=${t.toFixed(1)}s)` });
-            Plotly.react('fractionContourPlot', plotData.fractionContour, { ...fractionContourLayout, shapes: shapes, title: `Fraction (t=${t.toFixed(1)}s)` });
-            Plotly.react('velocityContourPlot', plotData.velocityContour, { ...velocityContourLayout, shapes: shapes, title: `Velocity (t=${t.toFixed(1)}s)` });
+            Plotly.react('tempContourPlot', plotData.tempContour, { ...tempContourLayout, title: `Temp (t=${t.toFixed(1)}s)` });
+            Plotly.react('fractionContourPlot', plotData.fractionContour, { ...fractionContourLayout, title: `Fraction (t=${t.toFixed(1)}s)` });
+            Plotly.react('velocityContourPlot', plotData.velocityContour, { ...velocityContourLayout, title: `Velocity (t=${t.toFixed(1)}s)` });
         }
 
         // Advanced Analysis Implementations
